@@ -9,17 +9,37 @@ function Contact() {
     message: "",
   });
 
+  // Only affects layout on mobile (<860px). Desktop always shows both panels.
+  const [activeTab, setActiveTab] = useState("info"); // "info" | "query"
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
-    // Hook this up to your backend / email service later
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const res = await fetch("http://localhost:3000/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.message || "Something went wrong. Please try again.");
+      return;
+    }
+
     alert("Thanks for reaching out! We'll get back to you soon.");
     setFormData({ name: "", email: "", subject: "", message: "" });
-  };
+  } catch (err) {
+    console.error("Contact form submit error:", err);
+    alert("Network error. Please try again.");
+  }
+};
 
   return (
     <div className="contact-page">
@@ -30,8 +50,26 @@ function Contact() {
 
       <div className="contact-container">
 
+        {/* Mobile-only tab bar */}
+        <div className="mobile-tabs">
+          <button
+            type="button"
+            className={`mobile-tab-btn ${activeTab === "info" ? "active" : ""}`}
+            onClick={() => setActiveTab("info")}
+          >
+            Contact Information
+          </button>
+          <button
+            type="button"
+            className={`mobile-tab-btn ${activeTab === "query" ? "active" : ""}`}
+            onClick={() => setActiveTab("query")}
+          >
+            Your Query
+          </button>
+        </div>
+
         {/* Left info panel */}
-        <div className="contact-info">
+        <div className={`contact-info ${activeTab === "info" ? "tab-active" : "tab-hidden"}`}>
           <h2>Contact Information</h2>
           <p className="info-subtext">
             Reach out to us directly or fill the form and we'll respond within 24 hours.
@@ -79,7 +117,7 @@ function Contact() {
         </div>
 
         {/* Right contact form */}
-        <div className="contact-form-wrapper">
+        <div className={`contact-form-wrapper ${activeTab === "query" ? "tab-active" : "tab-hidden"}`}>
           <form className="contact-form" onSubmit={handleSubmit}>
             <div className="form-row">
               <div className="input-group">

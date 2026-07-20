@@ -3680,3 +3680,404 @@ width:360px;
   cursor: pointer;
   padding: 0;
 }
+
+/* ============================================================
+   PetroHub — Contact Card, v2
+   Design direction: refinery control-room. Near-black backdrop,
+   blueprint grid texture, copper/amber glow, gauge-dial icons,
+   condensed industrial headline type, monospace data labels.
+   ============================================================ */
+
+:root {
+  --ph-black: #14120f;
+  --ph-panel: #1b1814;
+  --ph-copper: #e4672b;
+  --ph-amber: #ffb84d;
+  --ph-steel: #3a4750;
+  --ph-line: #2c2822;
+  --ph-off: #f5f1e8;
+  --ph-off-dim: #ab9f8c;
+}
+
+.contact-page {
+  background:
+    radial-gradient(circle at 15% -10%, rgba(228, 103, 43, 0.14), transparent 45%),
+    var(--ph-black);
+  padding: 64px 24px;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: var(--ph-off);
+}
+
+.contact-header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 44px;
+}
+
+.contact-header h1 {
+  font-family: "Oswald", "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: 2.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ph-off);
+  margin-bottom: 12px;
+}
+
+.contact-header h1::after {
+  content: "";
+  display: block;
+  width: 64px;
+  height: 3px;
+  margin: 16px auto 0;
+  background: linear-gradient(90deg, var(--ph-copper), var(--ph-amber));
+}
+
+.contact-header p {
+  color: var(--ph-off-dim);
+  font-size: 0.98rem;
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Card shell ---------- */
+
+.contact-container {
+  position: relative;
+  max-width: 1120px;
+  margin: 0 auto;
+  background: var(--ph-panel);
+  border: 1px solid var(--ph-line);
+  border-radius: 6px;
+  box-shadow:
+    0 40px 80px -30px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(228, 103, 43, 0.05);
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  overflow: hidden;
+}
+
+/* blueprint grid texture, whole card */
+.contact-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(245, 241, 232, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 241, 232, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  z-index: 0;
+}
+
+/* diagonal copper stripe across the top */
+.contact-container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--ph-copper) 0px,
+    var(--ph-copper) 14px,
+    var(--ph-amber) 14px,
+    var(--ph-amber) 28px
+  );
+  z-index: 2;
+}
+
+@media (max-width: 860px) {
+  .contact-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Left info panel ---------- */
+
+.contact-info {
+  position: relative;
+  z-index: 1;
+  padding: 52px 40px;
+  border-right: 1px solid var(--ph-line);
+}
+
+@media (max-width: 860px) {
+  .contact-info {
+    border-right: none;
+    border-bottom: 1px solid var(--ph-line);
+  }
+}
+
+.contact-info h2 {
+  font-family: "Oswald", "Bebas Neue", "Arial Narrow", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ph-off);
+  margin-bottom: 10px;
+}
+
+.info-subtext {
+  color: var(--ph-off-dim);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin-bottom: 40px;
+  max-width: 32ch;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+/* gauge-dial icon: conic-gradient ring around a dark hub */
+.info-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(
+    var(--ph-copper) 0deg 260deg,
+    var(--ph-line) 260deg 360deg
+  );
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.info-icon::before {
+  content: "";
+  position: absolute;
+}
+
+.info-icon svg,
+.info-icon {
+  position: relative;
+}
+
+/* inner hub that sits on top of the conic ring */
+.info-icon {
+  isolation: isolate;
+}
+
+.info-icon > * {
+  z-index: 1;
+}
+
+.info-icon {
+  box-shadow: inset 0 0 0 3px var(--ph-panel);
+}
+
+.info-icon svg {
+  color: var(--ph-amber);
+  font-size: 1.05rem;
+}
+
+.info-item:hover .info-icon {
+  filter: drop-shadow(0 0 8px rgba(255, 184, 77, 0.55));
+  transform: scale(1.06);
+}
+
+.info-item h4 {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ph-amber);
+  margin-bottom: 5px;
+}
+
+.info-item p,
+.info-item a {
+  font-size: 0.98rem;
+  color: var(--ph-off);
+  text-decoration: none;
+}
+
+/* ---------- Right form panel ---------- */
+
+.contact-form-wrapper {
+  position: relative;
+  z-index: 1;
+  padding: 52px 44px;
+}
+
+.contact-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+@media (max-width: 520px) {
+  .contact-form .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input-group {
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group label {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ph-off-dim);
+  margin-bottom: 9px;
+}
+
+.input-group input,
+.input-group textarea {
+  border: 1px solid var(--ph-line);
+  border-radius: 3px;
+  padding: 13px 16px;
+  font-size: 0.95rem;
+  font-family: "Inter", sans-serif;
+  color: var(--ph-off);
+  background: rgba(245, 241, 232, 0.03);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.input-group input::placeholder,
+.input-group textarea::placeholder {
+  color: #635a4c;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  outline: none;
+  border-color: var(--ph-copper);
+  background: rgba(228, 103, 43, 0.06);
+  box-shadow: 0 0 0 3px rgba(228, 103, 43, 0.18), 0 0 16px rgba(255, 184, 77, 0.12);
+}
+
+.input-group textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+
+.contact-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--ph-copper);
+  color: var(--ph-black);
+  font-family: "Oswald", "Bebas Neue", "Arial Narrow", sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: none;
+  border-radius: 3px;
+  padding: 15px 30px;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(228, 103, 43, 0.4), 0 14px 28px -12px rgba(228, 103, 43, 0.5);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.contact-submit-btn:hover {
+  background: var(--ph-amber);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px rgba(255, 184, 77, 0.5), 0 18px 34px -12px rgba(255, 184, 77, 0.55);
+}
+
+.contact-submit-btn:active {
+  transform: translateY(0);
+}
+
+.contact-submit-btn:focus-visible {
+  outline: 2px solid var(--ph-amber);
+  outline-offset: 3px;
+}
+
+/* ============================================================
+   Mobile tabs — "Contact Information" / "Your Query"
+   Tab bar only renders/shows below 860px. On desktop both
+   panels stay visible side by side, tab state is ignored.
+   ============================================================ */
+
+.mobile-tabs {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .mobile-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: relative;
+    z-index: 2;
+    border-bottom: 1px solid var(--ph-line);
+    background: var(--ph-panel);
+  }
+
+  .mobile-tab-btn {
+    font-family: "JetBrains Mono", "Courier New", monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ph-off-dim);
+    background: transparent;
+    border: none;
+    padding: 16px 8px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.18s ease;
+  }
+
+  .mobile-tab-btn.active {
+    color: var(--ph-amber);
+  }
+
+  .mobile-tab-btn::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: transparent;
+    transition: background 0.18s ease;
+  }
+
+  .mobile-tab-btn.active::after {
+    background: linear-gradient(90deg, var(--ph-copper), var(--ph-amber));
+  }
+
+  /* default state: both panels visible (desktop) */
+  .contact-info,
+  .contact-form-wrapper {
+    display: block;
+  }
+
+  /* mobile: only the active panel shows */
+  .contact-info.tab-hidden,
+  .contact-form-wrapper.tab-hidden {
+    display: none;
+  }
+
+  .contact-info.tab-active,
+  .contact-form-wrapper.tab-active {
+    display: block;
+  }
+
+  .contact-info {
+    border-right: none;
+    border-bottom: none;
+  }
+}
