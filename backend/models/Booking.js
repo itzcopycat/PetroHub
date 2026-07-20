@@ -48,3 +48,6 @@ const bookingSchema = new mongoose.Schema(
 );
 
 bookingSchema.index({ consumerName: "text", phone: "text", bookingId: "text" });
+const Booking = mongoose.model("Booking", bookingSchema);
+
+module.exports = Booking;

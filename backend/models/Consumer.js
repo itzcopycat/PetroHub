@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const consumerSchema = new mongoose.Schema(
   {
@@ -8,10 +9,10 @@ const consumerSchema = new mongoose.Schema(
     name: { type: String, required: [true, "Name is required"], trim: true },
     dob: {
       type: Date,
-      required: [true, "Date of birth is required"],
+      required: false,
       validate: {
         validator: function (value) {
-          if (!value) return false;
+          if (!value) return true;
           const today = new Date();
           let age = today.getFullYear() - value.getFullYear();
           const monthDiff = today.getMonth() - value.getMonth();
@@ -28,22 +29,34 @@ const consumerSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: {
-        values: ["Male", "Female", "Other"],
-        message: "Gender is required",
-      },
-      required: [true, "Gender is required"],
+      enum: ["Male", "Female", "Other"],
+      required: false,
     },
-    avatarUrl: { type: String, default: "" },
+    avatarUrl: { type: String, default: "https://www.vectorstock.com/royalty-free-vector/avatar-default-user-profile-icon-simple-flat-grey-vector-57234191" },
+
+    // Auth
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: 6,
+      select: false,
+    },
 
     // Contact
     mobileNumber: {
       type: String,
       required: [true, "Mobile number is required"],
+      unique: true,
       trim: true,
       match: [/^\d{10}$/, "Mobile number must be exactly 10 digits"],
     },
-    email: { type: String, trim: true, lowercase: true, default: "" },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
 
     // Address
     address: {
@@ -59,13 +72,13 @@ const consumerSchema = new mongoose.Schema(
       },
     },
 
-    // Government ID documents
+    // Government ID documents — completed later via admin panel, not at signup
     aadhaarNumber: {
       type: String,
-      required: [true, "Aadhaar number is mandatory"],
-      unique: true,
       trim: true,
       match: [/^\d{12}$/, "Aadhaar number must be exactly 12 digits"],
+      unique: true,
+      sparse: true,
     },
     panNumber: { type: String, trim: true, uppercase: true, default: "" },
     form60Submitted: { type: Boolean, default: false },
@@ -74,30 +87,21 @@ const consumerSchema = new mongoose.Schema(
     rationCardNumber: { type: String, trim: true, default: "" },
     voterIdNumber: { type: String, trim: true, default: "" },
 
-    // LPG connection details
+    // LPG connection details — also completed later
     connectionType: {
       type: String,
-      enum: {
-        values: ["Domestic", "Commercial"],
-        message: "Connection type is required",
-      },
-      required: [true, "Connection type is required"],
+      enum: ["Domestic", "Commercial"],
+      required: false,
     },
     cylinderSize: {
       type: String,
-      enum: {
-        values: ["14.2kg", "19kg", "5kg"],
-        message: "Cylinder size is required",
-      },
-      required: [true, "Cylinder size is required"],
+      enum: ["14.2kg", "19kg", "5kg"],
+      required: false,
     },
     cylinderCount: {
       type: String,
-      enum: {
-        values: ["Single", "Double"],
-        message: "Cylinder count is required",
-      },
-      required: [true, "Cylinder count is required"],
+      enum: ["Single", "Double"],
+      required: false,
     },
     subsidyEligible: { type: Boolean, default: true },
     kycVerified: { type: Boolean, default: false },
@@ -114,15 +118,23 @@ const consumerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Enforce: either PAN is provided OR Form 60 is marked submitted
 consumerSchema.pre("validate", function () {
-  if (!this.panNumber && !this.form60Submitted) {
+  if (this.aadhaarNumber && !this.panNumber && !this.form60Submitted) {
     this.invalidate(
       "panNumber",
       "PAN number is required, or Form 60 must be submitted if consumer has no PAN"
     );
   }
 });
+
+consumerSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  this.password = await bcrypt.hash(this.password, 10);
+});
+
+consumerSchema.methods.comparePassword = function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
 
 consumerSchema.index({ name: "text", mobileNumber: "text", consumerId: "text" });
 

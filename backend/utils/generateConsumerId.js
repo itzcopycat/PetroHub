@@ -9,7 +9,7 @@ async function generateConsumerId() {
 
   const year = new Date().getFullYear();
   const padded = String(counter.seq).padStart(1, "0");
-  return `PH-${year}-${padded}`; // e.g. PH-2026-00001
+  return `PH-C-${year}-${padded}`; // e.g. PH-2026-00001
 }
 
 module.exports = generateConsumerId;

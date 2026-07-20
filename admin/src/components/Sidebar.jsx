@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-
+import logo from "../assets/images/brand/logo/logo.png";
 function Sidebar({ collapsed }) {
   return (
     <aside
@@ -7,17 +7,13 @@ function Sidebar({ collapsed }) {
       id="adminSidebar"
       aria-label="Main navigation"
     >
-      <div className="sidebar-header">
-        <div className="brand-mark" aria-label="adminHMD dashboard">
-          <span className="brand-icon">
-            <i className="bi bi-grid-1x2-fill" aria-hidden="true" />
-          </span>
-          <span className="brand-copy">
-            <span className="brand-title">PetroHub</span>
-            <span className="brand-subtitle">Administrator</span>
-          </span>
-        </div>
-      </div>
+      <div className="sidebar-brand">
+  <img src={logo} alt="PetroHub" className="brand-logo" />
+  <div className="brand-copy">
+    <h2 className="brand-title">PetroHub</h2>
+    <span className="brand-subtitle">Administrator</span>
+  </div>
+</div>
       <nav className="sidebar-nav">
         <NavLink
           to="/"

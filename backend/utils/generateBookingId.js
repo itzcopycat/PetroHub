@@ -9,7 +9,7 @@ async function generateBookingId() {
 
   const year = new Date().getFullYear();
   const padded = String(counter.seq).padStart(5, "0");
-  return `BK-${year}-${padded}`; // e.g. BK-2026-00001
+  return `PH-BK-${year}-${padded}`; // e.g. PH-2026-00001
 }
 
 module.exports = generateBookingId;

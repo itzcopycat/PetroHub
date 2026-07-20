@@ -68,16 +68,15 @@ a {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.brand-mark {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-  color: #ffffff;
+.logo-img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
 }
 
-.brand-mark:hover,
-.brand-mark:focus {
+
+logo-img:hover,
+logo-img:focus {
   color: #ffffff;
 }
 
@@ -90,20 +89,23 @@ a {
   flex: 0 0 auto;
   font-weight: 800;
 }
-
-.brand-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #2563eb, #0f766e);
-  color: #ffffff;
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
 }
 
-.brand-copy,
-.brand-title,
-.brand-subtitle,
-.nav-text,
-.sidebar-footer-text {
+.brand-logo {
+  width: 70x;
+  height: 70px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   transition: opacity 0.16s ease, width 0.16s ease;
 }
@@ -111,7 +113,7 @@ a {
 .brand-title,
 .brand-subtitle {
   display: block;
-  line-height: 1.2;
+  line-height: 0.9;
   white-space: nowrap;
 }
 
@@ -121,8 +123,8 @@ a {
 }
 
 .brand-subtitle {
-  color: #9ca3af;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 
 .sidebar-nav {
@@ -1586,9 +1588,9 @@ html[data-theme="dark"] {
   border-bottom-color: var(--admin-sidebar-border);
 }
 
-.brand-mark,
-.brand-mark:hover,
-.brand-mark:focus {
+logo-img,
+logo-img:hover,
+logo-img:focus {
   color: var(--admin-sidebar-text-strong);
 }
 
@@ -1629,4 +1631,31 @@ html[data-theme="dark"] {
    reset the margin when collapsed so content fills the space */
 .admin-shell.sidebar-collapsed .admin-main {
   margin-left: 0;
+}
+.chart-bar-wrap {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-bar-value {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--admin-text);
+}
+
+.chart-bar {
+  width: 100%;
+  height: var(--bar-size, 0%);
+  min-height: 4px;
+  display: block;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, var(--admin-primary), var(--admin-success));
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
 }

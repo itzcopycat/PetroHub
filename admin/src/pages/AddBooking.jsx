@@ -73,7 +73,7 @@ function AddBooking() {
       await axios.post("http://localhost:3000/api/bookings", payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      navigate("/lpg-bookings");
+      navigate("/lpgbookings");
     } catch (err) {
       setError(err.response?.data?.message || "Could not create booking");
     } finally {

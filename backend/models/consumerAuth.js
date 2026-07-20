@@ -2,26 +2,25 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const Consumer = require("../models/Consumer");
-const authMiddleware = require("../middleware/auth");
 const generateConsumerId = require("../utils/generateConsumerId");
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = "7d";
 
 function signToken(consumer) {
   return jwt.sign(
     { id: consumer._id, consumerId: consumer.consumerId },
     JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: JWT_EXPIRES_IN }
   );
 }
 
-// ================= PUBLIC: Consumer Register =================
-// POST /api/consumers/register
+// ================= REGISTER =================
 router.post("/register", async (req, res) => {
   try {
-    const { name, gender, dob, email, mobileNumber, password, address } = req.body;
+    const { name, email, mobileNumber, password, address } = req.body;
 
-    if (!name || !gender || !dob || !email || !mobileNumber || !password || !address || !address.district) {
+    if (!name || !email || !mobileNumber || !password || !address) {
       return res.status(400).json({ message: "Please fill in all required fields." });
     }
 
@@ -29,8 +28,6 @@ router.post("/register", async (req, res) => {
 
     const consumer = await Consumer.create({
       name,
-      gender,
-      dob,
       email,
       mobileNumber,
       password,
@@ -46,15 +43,12 @@ router.post("/register", async (req, res) => {
         id: consumer._id,
         consumerId: consumer.consumerId,
         name: consumer.name,
-        gender: consumer.gender,
-        dob: consumer.dob,
         email: consumer.email,
         mobileNumber: consumer.mobileNumber,
         address: consumer.address,
       },
     });
   } catch (err) {
-    console.error("Register error:", err);
     if (err.name === "ValidationError") {
       const firstError = Object.values(err.errors)[0].message;
       return res.status(400).json({ message: firstError });
@@ -67,8 +61,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// ================= PUBLIC: Consumer Login =================
-// POST /api/consumers/login
+// ================= LOGIN =================
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -96,57 +89,14 @@ router.post("/login", async (req, res) => {
         id: consumer._id,
         consumerId: consumer.consumerId,
         name: consumer.name,
-        gender: consumer.gender,
-        dob: consumer.dob,
         email: consumer.email,
         mobileNumber: consumer.mobileNumber,
         address: consumer.address,
       },
     });
   } catch (err) {
-    console.error("Login error:", err);
     res.status(500).json({ message: "Something went wrong. Please try again." });
   }
-});
-
-// ================= ADMIN ROUTES (unchanged, still protected) =================
-
-router.get("/", authMiddleware, async (req, res) => {
-  const consumers = await Consumer.find().sort({ createdAt: -1 });
-  res.json({ consumers });
-});
-
-router.post("/", authMiddleware, async (req, res) => {
-  try {
-    const consumerId = await generateConsumerId();
-
-    const consumer = await Consumer.create({
-      ...req.body,
-      consumerId,
-      createdBy: req.admin?.id,
-    });
-
-    res.status(201).json({ consumer });
-  } catch (err) {
-    if (err.name === "ValidationError") {
-      const firstError = Object.values(err.errors)[0].message;
-      return res.status(400).json({ message: firstError });
-    }
-    if (err.code === 11000) {
-      const field = Object.keys(err.keyPattern)[0];
-      return res.status(400).json({ message: `${field} already exists` });
-    }
-    res.status(400).json({ message: err.message });
-  }
-});
-
-router.patch("/:id", authMiddleware, async (req, res) => {
-  const consumer = await Consumer.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-  if (!consumer) return res.status(404).json({ message: "Consumer not found" });
-  res.json({ consumer });
 });
 
 module.exports = router;

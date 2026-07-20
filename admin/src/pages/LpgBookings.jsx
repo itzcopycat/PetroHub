@@ -2,12 +2,10 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 
-const STATUS_OPTIONS = ["Pending", "Confirmed", "Delivered", "Cancelled"];
+const STATUS_OPTIONS = ["Pending", "Delivered", "Cancelled"];
 
 function getStatusBadgeClass(status) {
   switch (status) {
-    case "Confirmed":
-      return "badge text-bg-primary";
     case "Delivered":
       return "badge text-bg-success";
     case "Pending":
@@ -81,7 +79,7 @@ function LpgBookings() {
 
   const summary = {
     total: bookings.length,
-    confirmed: bookings.filter((b) => b.status === "Confirmed").length,
+    delivered: bookings.filter((b) => b.status === "Delivered").length,
     pending: bookings.filter((b) => b.status === "Pending").length,
     cancelled: bookings.filter((b) => b.status === "Cancelled").length,
   };
@@ -134,14 +132,14 @@ function LpgBookings() {
             <div className="col-12 col-sm-6 col-xl-3">
               <article className="metric-card metric-success">
                 <div className="metric-top">
-                  <span className="metric-label">Confirmed</span>
+                  <span className="metric-label">Delivered</span>
                   <span className="metric-icon">
                     <i className="bi bi-check2-circle" aria-hidden="true" />
                   </span>
                 </div>
-                <div className="metric-value">{summary.confirmed}</div>
+                <div className="metric-value">{summary.delivered}</div>
                 <div className="metric-meta">
-                  <span>awaiting delivery</span>
+                  <span>Deliveries Done</span>
                 </div>
               </article>
             </div>
