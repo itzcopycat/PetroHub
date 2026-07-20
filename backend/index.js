@@ -6,6 +6,7 @@ const cors = require('cors');
 const path = require('path');
 
 const authController = require('./controllers/authController');
+const transporter = require('./utils/mailer');
 
 const mongoString = process.env.DATABASE_URL;
 
@@ -17,6 +18,14 @@ const database = mongoose.connection;
 
 database.on('error', (error) => {
   console.log('MongoDB runtime error:', error);
+});
+
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('Mailer config error:', error);
+  } else {
+    console.log('Mailer is ready to send emails');
+  }
 });
 
 const app = express();
@@ -31,6 +40,7 @@ app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/contact', require('./routes/contact'));
 
 // Serve uploaded files (e.g. profile photos)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
