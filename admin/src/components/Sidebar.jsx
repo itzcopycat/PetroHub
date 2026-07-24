@@ -1,6 +1,29 @@
-import { NavLink } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/images/brand/logo/logo.png";
+
+const settingsSubmenu = [
+  { to: "/profile", label: "Profile Settings", icon: "bi-person-gear" },
+  { to: "/change-password", label: "Change Password", icon: "bi-shield-lock" },
+  { to: "/edit-lpg-prices", label: "Edit LPG Price", icon: "bi-currency-rupee" },
+];
+
 function Sidebar({ collapsed }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Auto-expand Settings if the current route is one of its submenu items
+  const isSettingsRoute = settingsSubmenu.some((item) => item.to === location.pathname);
+  const [settingsOpen, setSettingsOpen] = useState(isSettingsRoute);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("admin");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("admin");
+    navigate("/login");
+  };
+
   return (
     <aside
       className={`admin-sidebar ${collapsed ? "collapsed" : ""}`}
@@ -8,12 +31,13 @@ function Sidebar({ collapsed }) {
       aria-label="Main navigation"
     >
       <div className="sidebar-brand">
-  <img src={logo} alt="PetroHub" className="brand-logo" />
-  <div className="brand-copy">
-    <h2 className="brand-title">PetroHub</h2>
-    <span className="brand-subtitle">Administrator</span>
-  </div>
-</div>
+        <img src={logo} alt="PetroHub" className="brand-logo" />
+        <div className="brand-copy">
+          <h2 className="brand-title">PetroHub</h2>
+          <span className="brand-subtitle">Administrator</span>
+        </div>
+      </div>
+
       <nav className="sidebar-nav">
         <NavLink
           to="/"
@@ -47,7 +71,7 @@ function Sidebar({ collapsed }) {
         </NavLink>
 
         <NavLink
-          to="/users"
+          to="/delivery"
           className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
         >
           <span className="nav-icon">
@@ -67,7 +91,7 @@ function Sidebar({ collapsed }) {
         </NavLink>
 
         <NavLink
-          to="/users"
+          to="/cylinderstock"
           className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
         >
           <span className="nav-icon">
@@ -81,23 +105,13 @@ function Sidebar({ collapsed }) {
           className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
         >
           <span className="nav-icon">
-            <i className="bi bi-pencil" aria-hidden="true" />
-          </span>
-          <span className="nav-text">Edit LPG Price</span>
-        </NavLink>
-
-        <NavLink
-          to="/users"
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-        >
-          <span className="nav-icon">
             <i className="bi bi-bell" aria-hidden="true" />
           </span>
           <span className="nav-text">Notifications</span>
         </NavLink>
 
         <NavLink
-          to="/users"
+          to="/reports"
           className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
         >
           <span className="nav-icon">
@@ -106,26 +120,79 @@ function Sidebar({ collapsed }) {
           <span className="nav-text">Reports</span>
         </NavLink>
 
-        <NavLink
-          to="/users"
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+        {/* Settings — parent menu with submenu */}
+        <button
+          type="button"
+          className={`nav-link ${isSettingsRoute ? "active" : ""}`}
+          onClick={() => setSettingsOpen((prev) => !prev)}
+          style={{
+            width: "100%",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            justifyContent: "space-between",
+          }}
+          aria-expanded={settingsOpen}
         >
-          <span className="nav-icon">
-            <i className="bi bi-gear" aria-hidden="true" />
+          <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <span className="nav-icon">
+              <i className="bi bi-gear" aria-hidden="true" />
+            </span>
+            <span className="nav-text">Settings</span>
           </span>
-          <span className="nav-text">Settings</span>
-        </NavLink>
+          <i
+            className={`bi bi-chevron-down nav-text`}
+            style={{
+              fontSize: "0.75rem",
+              transition: "transform 0.16s ease",
+              transform: settingsOpen ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+            aria-hidden="true"
+          />
+        </button>
 
-        <NavLink
-          to="/users"
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+        {settingsOpen && (
+          <div
+            style={{
+              display: "grid",
+              gap: "0.3rem",
+              paddingLeft: "0.5rem",
+              marginTop: "-0.15rem",
+            }}
+          >
+            {settingsSubmenu.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+                style={{ minHeight: 40, padding: "0.6rem 0.9rem 0.6rem 1.6rem" }}
+              >
+                <span
+                  className="nav-icon"
+                  style={{ width: 24, height: 24, fontSize: "0.7rem" }}
+                >
+                  <i className={`bi ${item.icon}`} aria-hidden="true" />
+                </span>
+                <span className="nav-text" style={{ fontSize: "0.9rem" }}>
+                  {item.label}
+                </span>
+              </NavLink>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="nav-link"
+          onClick={handleLogout}
+          style={{ width: "100%", border: "none", background: "transparent", cursor: "pointer" }}
         >
           <span className="nav-icon">
             <i className="bi bi-power" aria-hidden="true" />
           </span>
           <span className="nav-text">LogOut</span>
-        </NavLink>
-        {/* repeat this NavLink pattern for add-user, profile, charts, tables, forms, components, alerts, modals, settings, blank */}
+        </button>
+        {/* repeat this NavLink pattern for add-user, profile, charts, tables, forms, components, alerts, modals, blank */}
       </nav>
       {/* ...sidebar-user and sidebar-footer unchanged... */}
     </aside>

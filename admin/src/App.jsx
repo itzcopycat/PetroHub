@@ -19,7 +19,12 @@ import AddConsumer from "./pages/AddConsumer.jsx";
 import Login from "./pages/Login.jsx";
 import AddBooking from "./pages/AddBooking.jsx";
 import LpgBookings from "./pages/LpgBookings.jsx";
+import Delivery from "./pages/Delivery.jsx";
+import RestockCylinders from "./pages/RestockCylinders.jsx";
+import CylinderStock from "./pages/CylinderStock.jsx";
+import EditLpgPrice from "./pages/EditLpgPrice.jsx";
 import Profile from "./pages/Profile.jsx";
+import Reports from "./pages/Reports.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
@@ -39,9 +44,16 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="/consumers" element={<Consumers />} />
             <Route path="/lpgbookings" element={<LpgBookings />} />
+            <Route path="/delivery" element={<Delivery />} />
+            <Route path="/cylinderstock" element={<CylinderStock />} />
             <Route path="/addconsumer" element={<AddConsumer />} />
             <Route path="/addbooking" element={<AddBooking />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/users" element={<Consumers />} />
+            <Route path="/restock-cylinders" element={<RestockCylinders />} />
+            <Route path="/edit-lpg-prices" element={<EditLpgPrice />} />
+            <Route path="/reports" element={<Reports />} />
+
             {/* <Route path="add-user" element={<AddUser />} /> */}
             {/* <Route path="profile" element={<Profile />} /> */}
           </Route>

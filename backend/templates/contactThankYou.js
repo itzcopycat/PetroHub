@@ -3,8 +3,7 @@ const contactThankYouTemplate = (name) => `
 
     <!-- Header -->
     <div style="background-color: #1a1a1a; padding: 24px 32px; text-align: center;">
-      <img src="https://yourdomain.com/logo.png" alt="PetroHub Logo" width="48" style="vertical-align: middle; margin-right: 12px;" />
-      <span style="font-size: 26px; font-weight: bold; color: #f7941d; vertical-align: middle;">PetroHub</span>
+      <span style="font-size: 26px; font-weight: bold; color: #f7941d;">PetroHub</span>
       <p style="margin: 6px 0 0; font-size: 13px; font-style: italic; color: #4a90d9; font-weight: bold;">
         Powering Every Kitchen!
       </p>

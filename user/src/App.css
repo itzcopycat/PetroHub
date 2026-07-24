@@ -4081,3 +4081,24 @@ width:360px;
     border-bottom: none;
   }
 }
+.btn-cancel {
+  margin-top: 1rem;
+  padding: 0.65rem 1.5rem;
+  background: transparent;
+  border: 2px solid #e53e3e;
+  color: #e53e3e;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #e53e3e;
+  color: #fff;
+}
+
+.btn-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

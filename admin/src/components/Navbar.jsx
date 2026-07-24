@@ -23,9 +23,15 @@ function Navbar({ collapsed, onToggleSidebar }) {
   }, []);
 
   const adminName = admin?.name || "Admin";
-  const adminAvatar = admin?.avatarUrl
-    ? `http://localhost:3000${admin.avatarUrl}`
-    : "/assets/images/avatar/avatar.jpg";
+const adminAvatarUrl = admin?.avatarUrl ? `http://localhost:3000${admin.avatarUrl}` : "";
+
+const initials = (name) =>
+  (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0].toUpperCase())
+    .join("");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -106,20 +112,37 @@ function Navbar({ collapsed, onToggleSidebar }) {
           </div>
           <div className="dropdown">
             <button
-              className="profile-button dropdown-toggle"
-              type="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              <img
-                className="avatar-img avatar-sm"
-                src={adminAvatar}
-                alt={adminName}
-              />
-              <span className="profile-name d-none d-sm-inline">
-                {adminName}
-              </span>
-            </button>
+  className="profile-button dropdown-toggle"
+  type="button"
+  data-bs-toggle="dropdown"
+  aria-expanded="false"
+>
+  {adminAvatarUrl ? (
+    <img
+      className="avatar-img avatar-sm"
+      src={adminAvatarUrl}
+      alt={adminName}
+      onError={(e) => {
+        e.target.onerror = null;
+        e.target.style.display = "none";
+        e.target.nextSibling.style.display = "flex";
+      }}
+    />
+  ) : null}
+  <span
+    className="avatar-img avatar-sm d-flex align-items-center justify-content-center"
+    style={{
+      display: adminAvatarUrl ? "none" : "flex",
+      background: "var(--bs-primary, #0d6efd)",
+      color: "#fff",
+      fontSize: "13px",
+      fontWeight: 600,
+    }}
+  >
+    {initials(adminName)}
+  </span>
+  <span className="profile-name d-none d-sm-inline">{adminName}</span>
+</button>
             <ul className="dropdown-menu dropdown-menu-end">
               <li>
                 <a className="dropdown-item" href="/profile">

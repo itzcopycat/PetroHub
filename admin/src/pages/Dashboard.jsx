@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -24,6 +25,22 @@ function Dashboard() {
         setLoading(false);
       }
     };
+
+    const fetchNotifications = async () => {
+      setNotifLoading(true);
+      try {
+        const res = await axios.get("http://localhost:3000/api/dashboard/recent-notifications", {
+          ...authHeader,
+          params: { limit: 5 },
+        });
+        setNotifications(res.data.notifications || []);
+      } catch (err) {
+        setNotifications([]);
+      } finally {
+        setNotifLoading(false);
+      }
+    };
+
     const fetchYears = async () => {
       try {
         const res = await axios.get("http://localhost:3000/api/dashboard/available-years", authHeader);
@@ -34,6 +51,7 @@ function Dashboard() {
     };
     fetchStats();
     fetchYears();
+    fetchNotifications();
   }, []);
 
   useEffect(() => {
@@ -56,6 +74,32 @@ function Dashboard() {
   }, [selectedYear]);
 
   const maxBooking = Math.max(...monthlyData.map((m) => m.count), 1);
+
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(true);
+
+  const dotColorForType = (type) => {
+    switch (type) {
+      case "success":
+        return "bg-success";
+      case "warning":
+        return "bg-warning";
+      case "danger":
+        return "bg-danger";
+      default:
+        return "bg-primary";
+    }
+  };
+
+  const timeAgo = (dateStr) => {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
 
   return (
     <div className="container-fluid px-3 px-lg-4 py-4">
@@ -154,97 +198,107 @@ function Dashboard() {
 
       <section className="row g-3 mt-1">
         <div className="col-12 col-xl-8">
-  <div className="panel">
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h2 className="h5 mb-1 section-title">
+                  <i className="bi bi-graph-up-arrow" aria-hidden="true" />
+                  <span>Monthly Booking Report</span>
+                </h2>
+                <p className="text-muted mb-0">
+                  Number of cylinder bookings placed per month
+                  {selectedYear === "recent" ? " (last 6 months)" : ` in ${selectedYear}`}.
+                </p>
+              </div>
+              <select
+                className="form-select form-select-sm w-auto"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+              >
+                <option value="recent">Last 6 Months</option>
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ width: "100%", height: "clamp(220px, 35vw, 320px)" }}>
+              {chartLoading ? (
+                <p className="text-muted mb-0">Loading chart…</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={monthlyData.map((m) => ({
+                      ...m,
+                      displayLabel: selectedYear === "recent" ? `${m.label} '${String(m.year).slice(2)}` : m.label,
+                    }))}
+                    margin={{ top: 20, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis
+                      dataKey="displayLabel"
+                      tick={{ fontSize: 12, fill: "#6b7280" }}
+                      axisLine={{ stroke: "#e5e7eb" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 12, fill: "#6b7280" }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={30}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(59,130,246,0.08)" }}
+                      formatter={(value) => [`${value} bookings`, ""]}
+                      labelStyle={{ fontWeight: 600 }}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
+                    />
+                    <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} maxBarSize={48} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <p className="text-muted small mt-2 mb-0">
+              <i className="bi bi-info-circle" aria-hidden="true" /> Each bar represents total bookings created that month, not revenue.
+            </p>
+          </div>
+        </div>
+
+        <div className="col-12 col-xl-4">
+  <div className="panel h-100">
     <div className="panel-header">
       <div>
         <h2 className="h5 mb-1 section-title">
-          <i className="bi bi-graph-up-arrow" aria-hidden="true" />
-          <span>Monthly Booking Report</span>
+          <i className="bi bi-activity" aria-hidden="true" />
+          <span>Team Activity</span>
         </h2>
-        <p className="text-muted mb-0">
-          Number of cylinder bookings placed per month
-          {selectedYear === "recent" ? " (last 6 months)" : ` in ${selectedYear}`}.
-        </p>
+        <p className="text-muted mb-0">Recent notifications.</p>
       </div>
-      <select
-        className="form-select form-select-sm w-auto"
-        value={selectedYear}
-        onChange={(e) => setSelectedYear(e.target.value)}
-      >
-        <option value="recent">Last 6 Months</option>
-        {availableYears.map((y) => (
-          <option key={y} value={y}>
-            {y}
-          </option>
-        ))}
-      </select>
     </div>
-    <div
-      className="chart-bars"
-      aria-label="Number of bookings per month"
-      style={{ gridTemplateColumns: `repeat(${monthlyData.length || 6}, minmax(38px, 1fr))` }}
-    >
-      {chartLoading ? (
-        <p className="text-muted mb-0">Loading chart…</p>
+    <div className="activity-list">
+      {notifLoading ? (
+        <p className="text-muted mb-0">Loading notifications…</p>
+      ) : notifications.length === 0 ? (
+        <p className="text-muted mb-0">No recent notifications.</p>
       ) : (
-        monthlyData.map((m, i) => (
-          <div className="chart-column" key={`${m.year}-${m.month}-${i}`}>
-            <div className="chart-bar-wrap">
-              <span className="chart-bar-value">{m.count}</span>
-              <span
-                className="chart-bar"
-                style={{ height: `${(m.count / maxBooking) * 100}%` }}
-              />
+        notifications.map((n) => (
+          <div className="activity-item" key={n.id}>
+            <span className={`activity-dot ${dotColorForType(n.type)}`} />
+            <div>
+              <p className="mb-1 fw-semibold">{n.title}</p>
+              <p className="text-muted small mb-0">{n.message}</p>
+              <p className="text-muted small mb-0">{timeAgo(n.createdAt)}</p>
             </div>
-            <small>
-              {m.label}
-              {selectedYear === "recent" ? ` '${String(m.year).slice(2)}` : ""}
-            </small>
           </div>
         ))
       )}
     </div>
-    <p className="text-muted small mt-2 mb-0">
-      <i className="bi bi-info-circle" aria-hidden="true" /> Each bar represents total bookings created that month, not revenue.
-    </p>
   </div>
 </div>
-        <div className="col-12 col-xl-4">
-          <div className="panel h-100">
-            <div className="panel-header">
-              <div>
-                <h2 className="h5 mb-1 section-title">
-                  <i className="bi bi-activity" aria-hidden="true" />
-                  <span>Team Activity</span>
-                </h2>
-                <p className="text-muted mb-0">Recent operational updates.</p>
-              </div>
-            </div>
-            <div className="activity-list">
-              <div className="activity-item">
-                <span className="activity-dot bg-primary" />
-                <div>
-                  <p className="mb-1 fw-semibold">New campaign launched</p>
-                  <p className="text-muted small mb-0">Marketing team published the May offer.</p>
-                </div>
-              </div>
-              <div className="activity-item">
-                <span className="activity-dot bg-success" />
-                <div>
-                  <p className="mb-1 fw-semibold">Payment batch cleared</p>
-                  <p className="text-muted small mb-0">246 invoices were processed successfully.</p>
-                </div>
-              </div>
-              <div className="activity-item">
-                <span className="activity-dot bg-warning" />
-                <div>
-                  <p className="mb-1 fw-semibold">Support queue rising</p>
-                  <p className="text-muted small mb-0">Average first response time is 18 minutes.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </section>
     </div>
   );

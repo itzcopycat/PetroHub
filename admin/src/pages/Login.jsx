@@ -120,10 +120,6 @@ function Login() {
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
-
-          <p className="auth-footer">
-            Don't have an account? <a href="/signup">Contact your admin</a>
-          </p>
         </div>
       </div>
     </div>

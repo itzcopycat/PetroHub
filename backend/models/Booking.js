@@ -20,6 +20,10 @@ const bookingSchema = new mongoose.Schema(
     quantity: { type: Number, default: 1, min: 1 },
 
     bookingDate: { type: Date, default: Date.now },
+    // Date the consumer requested delivery for (separate from bookingDate,
+    // which is when the booking record was created).
+    preferredDeliveryDate: { type: Date, default: null },
+
     deliveryAddress: {
       line1: { type: String, default: "" },
       line2: { type: String, default: "" },
@@ -40,6 +44,13 @@ const bookingSchema = new mongoose.Schema(
       enum: ["Unpaid", "Paid", "Refunded"],
       default: "Unpaid",
     },
+    paymentMethod: {
+      type: String,
+      enum: ["Cash on Delivery", "UPI", "Credit / Debit Card"],
+      default: "Cash on Delivery",
+    },
+    specialInstructions: { type: String, default: "" },
+
     assignedDeliveryAgent: { type: String, default: "" },
     deliveredAt: { type: Date, default: null },
     cancelReason: { type: String, default: "" },
