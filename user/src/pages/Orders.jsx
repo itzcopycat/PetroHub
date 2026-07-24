@@ -43,6 +43,7 @@ function Orders() {
   const [error, setError] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -71,7 +72,6 @@ function Orders() {
   }
 
   async function cancelOrder(orderId) {
-    if (!window.confirm("Are you sure you want to cancel this order?")) return;
     setCancelling(true);
     try {
       await axios.patch(
@@ -85,6 +85,24 @@ function Orders() {
       alert(err.response?.data?.message || "Could not cancel order. Try again.");
     } finally {
       setCancelling(false);
+    }
+  }
+
+  // 🔧 Hook this up to your backend's report/complaint endpoint
+  async function reportOrder(orderId, reason) {
+    setReporting(true);
+    try {
+      await axios.post(
+        `${API_BASE}/api/bookings/${orderId}/report`,
+        { reason },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      return true;
+    } catch (err) {
+      alert(err.response?.data?.message || "Could not submit report. Try again.");
+      return false;
+    } finally {
+      setReporting(false);
     }
   }
 
@@ -168,16 +186,45 @@ function Orders() {
           order={selectedOrder}
           onBack={goBack}
           onCancel={cancelOrder}
+          onReport={reportOrder}
           cancelling={cancelling}
+          reporting={reporting}
         />
       )}
     </div>
   );
 }
 
-function OrderDetail({ order, onBack, onCancel, cancelling }) {
+function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting }) {
   const currentStepIndex = steps.indexOf(order.status);
   const isCancelled = order.status === "Cancelled";
+
+ const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Static price breakup — same mock values as TrackOrder.jsx.
+  // Replace with real values from your backend once bookings return a price breakdown.
+  const priceBreakup = {
+    cylinderPrice: 850,
+    deliveryFee: 30,
+    tax: 44,
+  };
+  const totalAmount =
+    priceBreakup.cylinderPrice + priceBreakup.deliveryFee + priceBreakup.tax;
+
+  const closeReportModal = () => {
+    setShowReportModal(false);
+    setReportReason("");
+    setReportSubmitted(false);
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    const ok = await onReport(order._id, reportReason);
+    if (ok) setReportSubmitted(true);
+  };
 
   return (
     <div className="order-detail-card">
@@ -330,21 +377,110 @@ function OrderDetail({ order, onBack, onCancel, cancelling }) {
             </div>
           )}
 
-          {/* Cancel button — only for Pending or Confirmed orders */}
-          {(order.status === "Pending" || order.status === "Confirmed") && (
+          {/* Actions — Report a Spam + Cancel Order */}
+          <div className="track-actions">
             <button
-              className="btn-cancel"
-              onClick={() => onCancel(order._id)}
-              disabled={cancelling}
+              className="report-btn"
+              onClick={() => setShowReportModal(true)}
             >
-              {cancelling ? "Cancelling…" : "Cancel Order"}
+              ⚠ Report a Problem
             </button>
-          )}
+
+            {(order.status === "Pending" || order.status === "Confirmed") && (
+              <button
+                className="cancel-btn"
+                onClick={() => setShowCancelModal(true)}
+                disabled={cancelling}
+              >
+                {cancelling ? "Cancelling…" : "Cancel Order"}
+              </button>
+            )}
+          </div>
         </>
       ) : (
         <div className="cancelled-box">
           <h3>✖ Order Cancelled</h3>
           <p>{order.cancelReason || "This booking was cancelled and is no longer active."}</p>
+        </div>
+      )}
+
+      {/* Report a Spam modal */}
+      {showReportModal && (
+        <div className="modal-overlay" onClick={closeReportModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            {!reportSubmitted ? (
+              <>
+                <h3>Report a Spam</h3>
+                <p>Let us know what's wrong with booking {order.bookingId}.</p>
+
+                <form onSubmit={handleReportSubmit}>
+                  <textarea
+                    rows="4"
+                    placeholder="Describe the issue (e.g. spam call, fake booking, wrong charge)..."
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    required
+                  ></textarea>
+
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="modal-btn-outline"
+                      onClick={closeReportModal}
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="modal-btn-primary" disabled={reporting}>
+                      {reporting ? "Submitting…" : "Submit Report"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <h3>✅ Report Submitted</h3>
+                <p>
+                  Thanks for letting us know. Our support team will reach
+                  out to you shortly regarding booking {order.bookingId}.
+                </p>
+                <div className="modal-actions">
+                  <button className="modal-btn-primary" onClick={closeReportModal}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Cancel confirmation modal */}
+      {showCancelModal && (
+        <div className="modal-overlay" onClick={() => setShowCancelModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h3>Cancel this order?</h3>
+            <p>
+              Are you sure you want to cancel booking {order.bookingId}? This
+              action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="modal-btn-outline"
+                onClick={() => setShowCancelModal(false)}
+              >
+                Keep Order
+              </button>
+              <button
+                className="modal-btn-danger"
+                onClick={() => {
+                  onCancel(order._id);
+                  setShowCancelModal(false);
+                }}
+              >
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
