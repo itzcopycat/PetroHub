@@ -1,56 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
-// Mock delivery partner data — swap this out for your API call once a
-// Delivery Partner model/route exists on the server.
-const INITIAL_PARTNERS = [
-  {
-    id: "DP-1042",
-    name: "Ravi Kumar Sharma",
-    phone: "+91 98765 43210",
-    area: "Shrirampur, Zone 3",
-    capacity: 45,
-    rating: 4.8,
-  },
-  {
-    id: "DP-1043",
-    name: "Anita Das",
-    phone: "+91 91234 56789",
-    area: "Hooghly North",
-    capacity: 30,
-    rating: 4.5,
-  },
-  {
-    id: "DP-1044",
-    name: "Suresh Patel",
-    phone: "+91 99887 66554",
-    area: "Bandel, Zone 1",
-    capacity: 60,
-    rating: 4.2,
-  },
-  {
-    id: "DP-1045",
-    name: "Meena Roy",
-    phone: "+91 90123 45678",
-    area: "Rishra East",
-    capacity: 25,
-    rating: 3.9,
-  },
-  {
-    id: "DP-1046",
-    name: "Arjun Ghosh",
-    phone: "+91 98111 22334",
-    area: "Serampore Central",
-    capacity: 50,
-    rating: 4.7,
-  },
-];
+const API_BASE = "http://localhost:3000";
 
 const emptyForm = {
   name: "",
   phone: "",
   area: "",
-  capacity: "",
+  dailyCapacity: "",
   rating: "",
 };
 
@@ -70,21 +27,40 @@ function initials(name) {
     .join("");
 }
 
-function nextId(partners) {
-  const max = partners.reduce((acc, p) => {
-    const n = parseInt(p.id.replace(/\D/g, ""), 10);
-    return Number.isNaN(n) ? acc : Math.max(acc, n);
-  }, 1041);
-  return `DP-${max + 1}`;
+function effectiveLoad(partner) {
+  if (!partner.lastAssignedDate) return 0;
+  const today = new Date().toDateString();
+  const lastDate = new Date(partner.lastAssignedDate).toDateString();
+  return lastDate === today ? partner.currentLoad : 0;
+}
+
+function availableToday(partner) {
+  return Math.max(partner.dailyCapacity - effectiveLoad(partner), 0);
+}
+
+function capacityBadgeClass(partner) {
+  const available = availableToday(partner);
+  const ratio = available / partner.dailyCapacity;
+  if (available === 0) return "text-bg-danger";
+  if (ratio <= 0.25) return "text-bg-warning";
+  return "text-bg-success";
 }
 
 function Delivery() {
-  // ---- Delivery partner directory (mock data) ----
-  const [partners, setPartners] = useState(INITIAL_PARTNERS);
+  // ---- Delivery partner directory (real API) ----
+  const [partners, setPartners] = useState([]);
+  const [loadingPartners, setLoadingPartners] = useState(true);
+  const [partnerError, setPartnerError] = useState("");
   const [query, setQuery] = useState("");
+
+  // Modal now serves both Add and Edit — editingPartner is null in Add mode,
+  // or the partner object being edited.
   const [showModal, setShowModal] = useState(false);
+  const [editingPartner, setEditingPartner] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
+  const [savingPartner, setSavingPartner] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   // ---- Pending bookings needing assignment (real API) ----
   const [pendingBookings, setPendingBookings] = useState([]);
@@ -92,27 +68,42 @@ function Delivery() {
   const [bookingError, setBookingError] = useState("");
   const [assignSelections, setAssignSelections] = useState({});
   const [assigningId, setAssigningId] = useState(null);
+  const [assignError, setAssignError] = useState("");
 
   const token =
     localStorage.getItem("token") || sessionStorage.getItem("token");
+  const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
   const filteredPartners = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return partners;
     return partners.filter((p) =>
-      [p.id, p.name, p.phone, p.area].some((field) =>
-        field.toLowerCase().includes(q)
+      [p.partnerId, p.name, p.phone, p.area].some((field) =>
+        field?.toLowerCase().includes(q)
       )
     );
   }, [partners, query]);
+
+  const fetchPartners = async () => {
+    setLoadingPartners(true);
+    setPartnerError("");
+    try {
+      const res = await axios.get(`${API_BASE}/api/delivery-partners`, authHeaders);
+      setPartners(res.data.partners || []);
+    } catch (err) {
+      setPartnerError(
+        err.response?.data?.message || "Could not load delivery partners"
+      );
+    } finally {
+      setLoadingPartners(false);
+    }
+  };
 
   const fetchPendingBookings = async () => {
     setLoadingBookings(true);
     setBookingError("");
     try {
-      const res = await axios.get("http://localhost:3000/api/bookings", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(`${API_BASE}/api/bookings`, authHeaders);
       const all = res.data.bookings || res.data;
       setPendingBookings(all.filter((b) => b.status === "Pending"));
     } catch (err) {
@@ -125,69 +116,133 @@ function Delivery() {
   };
 
   useEffect(() => {
+    fetchPartners();
     fetchPendingBookings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleAssignSelect(bookingId, partnerName) {
-    setAssignSelections((prev) => ({ ...prev, [bookingId]: partnerName }));
+  function handleAssignSelect(bookingId, partnerId) {
+    setAssignSelections((prev) => ({ ...prev, [bookingId]: partnerId }));
+    setAssignError("");
   }
 
   async function handleAssign(bookingId) {
-    const agentName = assignSelections[bookingId];
-    if (!agentName) return;
+    const partnerId = assignSelections[bookingId];
+    if (!partnerId) return;
 
     setAssigningId(bookingId);
+    setAssignError("");
     try {
-      await axios.patch(
-        `http://localhost:3000/api/bookings/${bookingId}`,
-        { assignedDeliveryAgent: agentName, status: "Confirmed" },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await axios.post(
+        `${API_BASE}/api/bookings/${bookingId}/assign`,
+        { partnerId },
+        authHeaders
       );
-      // Assigned bookings move out of "Pending" — drop them from this list.
       setPendingBookings((prev) => prev.filter((b) => b._id !== bookingId));
+      fetchPartners();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to assign delivery partner");
+      setAssignError(
+        err.response?.data?.message || "Failed to assign delivery partner"
+      );
     } finally {
       setAssigningId(null);
     }
   }
 
-  function openModal() {
+  function openAddModal() {
+    setEditingPartner(null);
     setForm(emptyForm);
     setFormError("");
     setShowModal(true);
   }
 
+  function openEditModal(partner) {
+    setEditingPartner(partner);
+    setForm({
+      name: partner.name,
+      phone: partner.phone,
+      area: partner.area,
+      dailyCapacity: partner.dailyCapacity,
+      rating: partner.rating,
+    });
+    setFormError("");
+    setShowModal(true);
+  }
+
   function closeModal() {
+    if (savingPartner) return;
     setShowModal(false);
+    setEditingPartner(null);
   }
 
   function handleFormChange(field) {
     return (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
   }
 
-  function handleAddPartner(e) {
+  async function handleSubmitPartner(e) {
     e.preventDefault();
 
-    if (!form.name.trim() || !form.phone.trim() || !form.area.trim()) {
-      setFormError("Name, phone number, and serviceable area are required.");
+    if (!form.name.trim() || !form.phone.trim() || !form.area.trim() || !form.dailyCapacity) {
+      setFormError("Name, phone number, serviceable area, and daily capacity are required.");
       return;
     }
 
-    const capacityNum = Number(form.capacity);
-    const ratingNum = Number(form.rating);
-
-    const newPartner = {
-      id: nextId(partners),
+    const payload = {
       name: form.name.trim(),
       phone: form.phone.trim(),
       area: form.area.trim(),
-      capacity: Number.isFinite(capacityNum) && capacityNum > 0 ? capacityNum : 0,
-      rating: Number.isFinite(ratingNum) && ratingNum > 0 ? Math.min(ratingNum, 5) : 0,
+      dailyCapacity: Number(form.dailyCapacity),
+      rating: form.rating ? Number(form.rating) : 0,
     };
 
-    setPartners((prev) => [newPartner, ...prev]);
-    setShowModal(false);
+    setSavingPartner(true);
+    setFormError("");
+    try {
+      if (editingPartner) {
+        const res = await axios.patch(
+          `${API_BASE}/api/delivery-partners/${editingPartner._id}`,
+          payload,
+          authHeaders
+        );
+        setPartners((prev) =>
+          prev.map((p) => (p._id === res.data.partner._id ? res.data.partner : p))
+        );
+      } else {
+        const res = await axios.post(
+          `${API_BASE}/api/delivery-partners`,
+          payload,
+          authHeaders
+        );
+        setPartners((prev) => [res.data.partner, ...prev]);
+      }
+      setShowModal(false);
+      setEditingPartner(null);
+    } catch (err) {
+      setFormError(
+        err.response?.data?.message ||
+          `Failed to ${editingPartner ? "update" : "add"} delivery partner`
+      );
+    } finally {
+      setSavingPartner(false);
+    }
+  }
+
+  async function handleDeletePartner(partner) {
+    const confirmed = window.confirm(
+      `Delete ${partner.name} (${partner.partnerId})? This can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(partner._id);
+    setPartnerError("");
+    try {
+      await axios.delete(`${API_BASE}/api/delivery-partners/${partner._id}`, authHeaders);
+      setPartners((prev) => prev.filter((p) => p._id !== partner._id));
+    } catch (err) {
+      setPartnerError(err.response?.data?.message || "Failed to delete delivery partner");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -207,7 +262,7 @@ function Delivery() {
             </div>
           </div>
           <div className="heading-actions">
-            <button type="button" className="btn btn-primary btn-sm" onClick={openModal}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={openAddModal}>
               <i className="bi bi-plus-lg" aria-hidden="true" /> Add new Delivery partner
             </button>
           </div>
@@ -238,9 +293,8 @@ function Delivery() {
             </button>
           </div>
 
-          {bookingError && (
-            <div className="alert alert-danger py-2 mb-3">{bookingError}</div>
-          )}
+          {bookingError && <div className="alert alert-danger py-2 mb-3">{bookingError}</div>}
+          {assignError && <div className="alert alert-danger py-2 mb-3">{assignError}</div>}
 
           {loadingBookings ? (
             <div className="blank-panel">
@@ -294,19 +348,24 @@ function Delivery() {
                       <td>
                         <select
                           className="form-select form-select-sm"
-                          style={{ minWidth: "170px" }}
+                          style={{ minWidth: "200px" }}
                           value={assignSelections[booking._id] || ""}
-                          onChange={(e) =>
-                            handleAssignSelect(booking._id, e.target.value)
-                          }
+                          onChange={(e) => handleAssignSelect(booking._id, e.target.value)}
                           disabled={assigningId === booking._id}
                         >
                           <option value="">Select partner…</option>
-                          {partners.map((partner) => (
-                            <option key={partner.id} value={partner.name}>
-                              {partner.name} · {partner.area}
-                            </option>
-                          ))}
+                          {partners.map((partner) => {
+                            const available = availableToday(partner);
+                            return (
+                              <option
+                                key={partner._id}
+                                value={partner._id}
+                                disabled={available === 0}
+                              >
+                                {partner.name} · {partner.area} ({available} left today)
+                              </option>
+                            );
+                          })}
                         </select>
                       </td>
                       <td className="text-end">
@@ -314,8 +373,7 @@ function Delivery() {
                           type="button"
                           className="btn btn-primary btn-sm"
                           disabled={
-                            !assignSelections[booking._id] ||
-                            assigningId === booking._id
+                            !assignSelections[booking._id] || assigningId === booking._id
                           }
                           onClick={() => handleAssign(booking._id)}
                         >
@@ -345,62 +403,110 @@ function Delivery() {
                 {filteredPartners.length} of {partners.length} partners shown
               </p>
             </div>
-            <input
-              type="search"
-              className="form-control form-control-sm table-search"
-              placeholder="Search by name, ID, phone, or area"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search delivery partners"
-            />
+            <div className="d-flex gap-2">
+              <button className="btn btn-outline-secondary btn-sm" type="button" onClick={fetchPartners}>
+                <i className="bi bi-arrow-clockwise" aria-hidden="true" /> Refresh
+              </button>
+              <input
+                type="search"
+                className="form-control form-control-sm table-search"
+                placeholder="Search by name, ID, phone, or area"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search delivery partners"
+              />
+            </div>
           </div>
 
-          <div className="table-responsive">
-            <table className="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th scope="col">Partner</th>
-                  <th scope="col">ID</th>
-                  <th scope="col">Phone Number</th>
-                  <th scope="col">Serviceable Area</th>
-                  <th scope="col">Delivery Capacity</th>
-                  <th scope="col">Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPartners.map((partner) => (
-                  <tr key={partner.id}>
-                    <td>
-                      <div className="table-media">
-                        <span className="profile-avatar avatar-sm">
-                          {initials(partner.name)}
-                        </span>
-                        <strong>{partner.name}</strong>
-                      </div>
-                    </td>
-                    <td className="text-muted">{partner.id}</td>
-                    <td>{partner.phone}</td>
-                    <td>{partner.area}</td>
-                    <td>{partner.capacity} cylinders/day</td>
-                    <td>
-                      <span className={`badge ${ratingBadgeClass(partner.rating)}`}>
-                        <i className="bi bi-star-fill" aria-hidden="true" />{" "}
-                        {partner.rating.toFixed(1)}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+          {partnerError && <div className="alert alert-danger py-2 mb-3">{partnerError}</div>}
 
-                {filteredPartners.length === 0 && (
+          {loadingPartners ? (
+            <div className="blank-panel">
+              <div className="blank-state">
+                <p className="text-muted mb-0">Loading delivery partners…</p>
+              </div>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table align-middle mb-0">
+                <thead>
                   <tr>
-                    <td colSpan={6} className="text-center text-muted py-4">
-                      No delivery partners match your search.
-                    </td>
+                    <th scope="col">Partner</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Phone Number</th>
+                    <th scope="col">Serviceable Area</th>
+                    <th scope="col">Today's Load</th>
+                    <th scope="col">Rating</th>
+                    <th scope="col" className="text-end">
+                      Action
+                    </th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredPartners.map((partner) => (
+                    <tr key={partner._id}>
+                      <td>
+                        <div className="table-media">
+                          <span className="profile-avatar avatar-sm">
+                            {initials(partner.name)}
+                          </span>
+                          <strong>{partner.name}</strong>
+                        </div>
+                      </td>
+                      <td className="text-muted">{partner.partnerId}</td>
+                      <td>{partner.phone}</td>
+                      <td>{partner.area}</td>
+                      <td>
+                        <span className={`badge ${capacityBadgeClass(partner)}`}>
+                          {availableToday(partner)} / {partner.dailyCapacity} left
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`badge ${ratingBadgeClass(partner.rating)}`}>
+                          <i className="bi bi-star-fill" aria-hidden="true" /> {partner.rating.toFixed(1)}
+                        </span>
+                      </td>
+                      <td className="text-end">
+                        <div className="d-flex gap-2 justify-content-end">
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-sm"
+                            aria-label={`Edit ${partner.name}`}
+                            title="Edit"
+                            onClick={() => openEditModal(partner)}
+                          >
+                            <i className="bi bi-pencil" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm"
+                            aria-label={`Delete ${partner.name}`}
+                            title="Delete"
+                            disabled={deletingId === partner._id}
+                            onClick={() => handleDeletePartner(partner)}
+                          >
+                            {deletingId === partner._id ? (
+                              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                            ) : (
+                              <i className="bi bi-trash" aria-hidden="true" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredPartners.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="text-center text-muted py-4">
+                        No delivery partners match your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {showModal && (
@@ -410,14 +516,14 @@ function Delivery() {
               style={{ display: "block" }}
               role="dialog"
               aria-modal="true"
-              aria-labelledby="addPartnerModalTitle"
+              aria-labelledby="partnerModalTitle"
             >
               <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
-                  <form onSubmit={handleAddPartner}>
+                  <form onSubmit={handleSubmitPartner}>
                     <div className="modal-header">
-                      <h5 className="modal-title" id="addPartnerModalTitle">
-                        Add new Delivery partner
+                      <h5 className="modal-title" id="partnerModalTitle">
+                        {editingPartner ? `Edit ${editingPartner.name}` : "Add new Delivery partner"}
                       </h5>
                       <button
                         type="button"
@@ -474,16 +580,16 @@ function Delivery() {
                       <div className="row">
                         <div className="col-6 mb-3">
                           <label className="form-label" htmlFor="partnerCapacity">
-                            Delivery capacity (per day)
+                            Daily delivery capacity
                           </label>
                           <input
                             id="partnerCapacity"
                             type="number"
-                            min="0"
+                            min="1"
                             className="form-control"
                             placeholder="e.g. 40"
-                            value={form.capacity}
-                            onChange={handleFormChange("capacity")}
+                            value={form.dailyCapacity}
+                            onChange={handleFormChange("dailyCapacity")}
                           />
                         </div>
                         <div className="col-6 mb-3">
@@ -509,11 +615,18 @@ function Delivery() {
                         type="button"
                         className="btn btn-outline-secondary"
                         onClick={closeModal}
+                        disabled={savingPartner}
                       >
                         Cancel
                       </button>
-                      <button type="submit" className="btn btn-primary">
-                        Add partner
+                      <button type="submit" className="btn btn-primary" disabled={savingPartner}>
+                        {savingPartner
+                          ? editingPartner
+                            ? "Saving…"
+                            : "Adding…"
+                          : editingPartner
+                          ? "Save changes"
+                          : "Add partner"}
                       </button>
                     </div>
                   </form>

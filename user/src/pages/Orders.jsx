@@ -236,12 +236,44 @@ function OrderDetail({ order, onBack, onCancel, cancelling }) {
         )}
       </div>
 
+      {/* Price Breakup — real snapshot captured when this booking was placed */}
       <div className="price-box">
         <h3>Price Summary</h3>
-        <div className="price-row total">
-          <span>Total Amount</span>
-          <span>{order.price > 0 ? `₹${order.price}` : "To be confirmed"}</span>
-        </div>
+
+        {order.priceBreakup ? (
+          <>
+            <div className="price-row">
+              <span>Cylinder Price{order.quantity > 1 ? ` (× ${order.quantity})` : ""}</span>
+              <span>₹{order.priceBreakup.cylinderPrice}</span>
+            </div>
+
+            <div className="price-row">
+              <span>Delivery Fee</span>
+              <span>₹{order.priceBreakup.deliveryFee}</span>
+            </div>
+
+            <div className="price-row">
+              <span>Platform Fee</span>
+              <span>₹{order.priceBreakup.platformFee}</span>
+            </div>
+
+            <div className="price-row">
+              <span>GST & Taxes ({order.priceBreakup.taxRatePercent}%)</span>
+              <span>₹{order.priceBreakup.taxAmount}</span>
+            </div>
+
+            <div className="price-row total">
+              <span>Total Amount</span>
+              <span>₹{order.priceBreakup.total}</span>
+            </div>
+          </>
+        ) : (
+          // Legacy bookings created before priceBreakup existed
+          <div className="price-row total">
+            <span>Total Amount</span>
+            <span>{order.price > 0 ? `₹${order.price}` : "To be confirmed"}</span>
+          </div>
+        )}
       </div>
 
       {order.specialInstructions && (
@@ -260,16 +292,11 @@ function OrderDetail({ order, onBack, onCancel, cancelling }) {
                 <div
                   key={step}
                   className={
-                    "progress-step " +
-                    (index < currentStepIndex
-                      ? "completed"
-                      : index === currentStepIndex
-                      ? "active"
-                      : "")
+                    "progress-step " + (index <= currentStepIndex ? "completed" : "")
                   }
                 >
                   <div className="progress-dot">
-                    {index < currentStepIndex ? "✓" : index + 1}
+                    {index <= currentStepIndex ? "✓" : index + 1}
                   </div>
                   <p>{step}</p>
                   {index < steps.length - 1 && (
@@ -284,12 +311,22 @@ function OrderDetail({ order, onBack, onCancel, cancelling }) {
             </div>
           </div>
 
-          {order.assignedDeliveryAgent && (
+          {/* order.deliveryPartner is the populated { name, phone } object
+              from GET /me's .populate("deliveryPartner", "name phone").
+              Falls back to the legacy assignedDeliveryAgent string if a
+              partner was assigned before this field existed. */}
+          {(order.deliveryPartner || order.assignedDeliveryAgent) && (
             <div className="delivery-box">
               <h3>Delivery Partner</h3>
               <p>
-                <strong>Name:</strong> {order.assignedDeliveryAgent}
+                <strong>Name:</strong>{" "}
+                {order.deliveryPartner?.name || order.assignedDeliveryAgent}
               </p>
+              {order.deliveryPartner?.phone && (
+                <p>
+                  <strong>Phone:</strong> {order.deliveryPartner.phone}
+                </p>
+              )}
             </div>
           )}
 

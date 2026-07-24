@@ -39,8 +39,10 @@ app.use('/api/consumers', require('./routes/consumer'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/pricing', require('./routes/pricing'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/contact', require('./routes/contact'));
+app.use('/api/delivery-partners', require('./routes/deliveryPartners'));
 
 // Serve uploaded files (e.g. profile photos)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

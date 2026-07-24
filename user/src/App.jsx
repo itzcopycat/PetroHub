@@ -22,7 +22,7 @@ import TrackOrder from "./pages/TrackOrder.jsx";
 import Orders from "./pages/Orders.jsx";
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop.jsx";
-import ScrollToTopButton from "./components/ScrollToToTopButton.jsx";
+import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
 
 function App() {
   return (

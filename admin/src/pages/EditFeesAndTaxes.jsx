@@ -4,6 +4,33 @@ import axios from "axios";
 
 const API_BASE = "http://localhost:3000";
 
+const FIELD_META = {
+  deliveryFee: {
+    key: "deliveryFee",
+    label: "Delivery Fee",
+    icon: "bi-truck",
+    unit: "₹",
+    endpoint: "delivery-fee",
+    description: "Flat fee charged per delivery",
+  },
+  platformFee: {
+    key: "platformFee",
+    label: "Platform Fee",
+    icon: "bi-diagram-3",
+    unit: "₹",
+    endpoint: "platform-fee",
+    description: "Flat fee charged per booking",
+  },
+  taxRatePercent: {
+    key: "taxRatePercent",
+    label: "GST / Tax Rate",
+    icon: "bi-receipt",
+    unit: "%",
+    endpoint: "tax",
+    description: "Applied to the cylinder price",
+  },
+};
+
 function formatDate(value) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("en-GB", {
@@ -13,23 +40,17 @@ function formatDate(value) {
   });
 }
 
-function iconFor(cylinderType) {
-  if (cylinderType === "5kg") return "bi-droplet-half";
-  if (cylinderType === "14.2kg") return "bi-fire";
-  return "bi-building";
-}
-
-function EditLpgPrice() {
+function EditFeesAndTaxes() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
-  const [cylinders, setCylinders] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [editingType, setEditingType] = useState(null);
-  const [draftPrice, setDraftPrice] = useState("");
+  const [editingKey, setEditingKey] = useState(null);
+  const [draftValue, setDraftValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -43,9 +64,9 @@ function EditLpgPrice() {
     setError("");
     try {
       const res = await axios.get(`${API_BASE}/api/pricing`, authHeaders);
-      setCylinders(res.data.settings.cylinderPrices || []);
+      setSettings(res.data.settings);
     } catch (err) {
-      setError(err.response?.data?.message || "Could not load cylinder prices");
+      setError(err.response?.data?.message || "Could not load fee settings");
     } finally {
       setLoading(false);
     }
@@ -55,9 +76,13 @@ function EditLpgPrice() {
     setHistoryLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/pricing/history`, authHeaders);
-      setHistory((res.data.logs || []).filter((log) => log.fieldType === "cylinder"));
+      setHistory(
+        (res.data.logs || []).filter((log) =>
+          ["deliveryFee", "platformFee", "tax"].includes(log.fieldType)
+        )
+      );
     } catch {
-      // Non-critical — history panel just stays empty on failure.
+      // Non-critical
     } finally {
       setHistoryLoading(false);
     }
@@ -69,21 +94,22 @@ function EditLpgPrice() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startEdit = (item) => {
-    setEditingType(item.cylinderType);
-    setDraftPrice(item.price);
+  const startEdit = (meta) => {
+    setEditingKey(meta.key);
+    setDraftValue(settings[meta.key].value);
     setSaveError("");
   };
 
   const cancelEdit = () => {
-    setEditingType(null);
-    setDraftPrice("");
+    setEditingKey(null);
+    setDraftValue("");
     setSaveError("");
   };
 
-  const saveEdit = async (item) => {
-    const newPrice = Number(draftPrice);
-    if (!newPrice || newPrice <= 0 || newPrice === item.price) {
+  const saveEdit = async (meta) => {
+    const newValue = Number(draftValue);
+    const current = settings[meta.key].value;
+    if (Number.isNaN(newValue) || newValue < 0 || newValue === current) {
       cancelEdit();
       return;
     }
@@ -92,17 +118,17 @@ function EditLpgPrice() {
     setSaveError("");
     try {
       const res = await axios.patch(
-        `${API_BASE}/api/pricing/cylinder/${encodeURIComponent(item.cylinderType)}`,
-        { price: newPrice },
+        `${API_BASE}/api/pricing/${meta.endpoint}`,
+        { value: newValue },
         authHeaders
       );
-      setCylinders(res.data.settings.cylinderPrices || []);
-      setToast(`${item.label} price updated to ₹${newPrice}`);
+      setSettings(res.data.settings);
+      setToast(`${meta.label} updated to ${meta.unit === "%" ? `${newValue}%` : `₹${newValue}`}`);
       setTimeout(() => setToast(null), 2500);
       cancelEdit();
       fetchHistory();
     } catch (err) {
-      setSaveError(err.response?.data?.message || "Failed to update price");
+      setSaveError(err.response?.data?.message || `Failed to update ${meta.label.toLowerCase()}`);
     } finally {
       setSaving(false);
     }
@@ -115,13 +141,13 @@ function EditLpgPrice() {
         <div className="page-heading">
           <div className="page-heading-copy">
             <span className="page-icon">
-              <i className="bi bi-currency-rupee"></i>
+              <i className="bi bi-receipt-cutoff"></i>
             </span>
             <div>
               <span className="eyebrow">Inventory Management</span>
-              <h1>Edit LPG Price</h1>
+              <h1>Fees &amp; Taxes</h1>
               <p className="text-muted mb-0">
-                Update cylinder prices across all categories.
+                Set the delivery fee, platform fee, and tax rate applied to every booking.
               </p>
             </div>
           </div>
@@ -150,9 +176,9 @@ function EditLpgPrice() {
           <div className="panel-header">
             <div>
               <h2 className="section-title" style={{ fontSize: "1.1rem", margin: 0 }}>
-                <i className="bi bi-grid-1x2"></i> Cylinder Pricing
+                <i className="bi bi-grid-1x2"></i> Fee Configuration
               </h2>
-              <p className="text-muted mb-0">Mini, Domestic and Commercial cylinders</p>
+              <p className="text-muted mb-0">Applied automatically to every new booking</p>
             </div>
             <button className="btn btn-outline-secondary btn-sm" onClick={fetchSettings}>
               <i className="bi bi-arrow-clockwise"></i> Refresh
@@ -161,15 +187,16 @@ function EditLpgPrice() {
 
           {error && <div className="alert alert-danger mb-3">{error}</div>}
 
-          {loading ? (
-            <p className="text-muted mb-0">Loading cylinder prices…</p>
+          {loading || !settings ? (
+            <p className="text-muted mb-0">Loading fee settings…</p>
           ) : (
             <div className="row g-3">
-              {cylinders.map((item) => {
-                const isEditing = editingType === item.cylinderType;
+              {Object.values(FIELD_META).map((meta) => {
+                const isEditing = editingKey === meta.key;
+                const field = settings[meta.key];
 
                 return (
-                  <div className="col-12 col-md-6 col-lg-4" key={item.cylinderType}>
+                  <div className="col-12 col-md-6 col-lg-4" key={meta.key}>
                     <div
                       className="mini-card"
                       style={{ display: "grid", gap: "0.75rem", minHeight: "auto", padding: "1.1rem" }}
@@ -177,13 +204,13 @@ function EditLpgPrice() {
                       <div className="d-flex align-items-center justify-content-between">
                         <div className="d-flex align-items-center gap-2">
                           <span className="nav-icon" style={{ width: 34, height: 34, fontSize: "1rem" }}>
-                            <i className={`bi ${iconFor(item.cylinderType)}`}></i>
+                            <i className={`bi ${meta.icon}`}></i>
                           </span>
                           <div>
                             <strong style={{ display: "block", fontSize: "0.98rem" }}>
-                              {item.label}
+                              {meta.label}
                             </strong>
-                            <span>{item.cylinderType}</span>
+                            <span>{meta.description}</span>
                           </div>
                         </div>
 
@@ -191,8 +218,8 @@ function EditLpgPrice() {
                           <button
                             className="icon-button"
                             style={{ width: 34, height: 34, fontSize: "0.85rem" }}
-                            onClick={() => startEdit(item)}
-                            title="Edit price"
+                            onClick={() => startEdit(meta)}
+                            title={`Edit ${meta.label.toLowerCase()}`}
                           >
                             <i className="bi bi-pencil"></i>
                           </button>
@@ -203,14 +230,15 @@ function EditLpgPrice() {
                         <>
                           <div>
                             <label className="form-label" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-                              New Price (₹)
+                              New {meta.label} ({meta.unit})
                             </label>
                             <input
                               type="number"
-                              min="1"
+                              min="0"
+                              step={meta.unit === "%" ? "0.1" : "1"}
                               className="form-control"
-                              value={draftPrice}
-                              onChange={(e) => setDraftPrice(e.target.value)}
+                              value={draftValue}
+                              onChange={(e) => setDraftValue(e.target.value)}
                               autoFocus
                               disabled={saving}
                             />
@@ -219,7 +247,7 @@ function EditLpgPrice() {
                             <button
                               className="btn btn-primary text-white"
                               style={{ flex: 1 }}
-                              onClick={() => saveEdit(item)}
+                              onClick={() => saveEdit(meta)}
                               disabled={saving}
                             >
                               <i className="bi bi-check-lg"></i> {saving ? "Saving…" : "Save"}
@@ -238,15 +266,15 @@ function EditLpgPrice() {
                         <>
                           <div className="d-flex justify-content-between align-items-baseline">
                             <span className="text-muted" style={{ fontSize: "0.85rem" }}>
-                              Current Price
+                              Current Value
                             </span>
                             <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>
-                              ₹{item.price}
+                              {meta.unit === "%" ? `${field.value}%` : `₹${field.value}`}
                             </span>
                           </div>
                           <div className="d-flex justify-content-between" style={{ fontSize: "0.78rem" }}>
                             <span className="text-muted">Last updated</span>
-                            <span>{formatDate(item.lastUpdated)}</span>
+                            <span>{formatDate(field.lastUpdated)}</span>
                           </div>
                         </>
                       )}
@@ -262,9 +290,9 @@ function EditLpgPrice() {
           <div className="panel-header">
             <div>
               <h2 className="section-title" style={{ fontSize: "1.1rem", margin: 0 }}>
-                <i className="bi bi-clock-history"></i> Price Change History
+                <i className="bi bi-clock-history"></i> Change History
               </h2>
-              <p className="text-muted mb-0">Recent cylinder price updates</p>
+              <p className="text-muted mb-0">Recent fee and tax updates</p>
             </div>
           </div>
 
@@ -274,7 +302,7 @@ function EditLpgPrice() {
             </p>
           ) : history.length === 0 ? (
             <p className="text-muted mb-0" style={{ fontSize: "0.9rem" }}>
-              No price changes yet.
+              No changes yet.
             </p>
           ) : (
             <div className="table-responsive">
@@ -282,9 +310,9 @@ function EditLpgPrice() {
                 <thead>
                   <tr>
                     <th>Change ID</th>
-                    <th>Category</th>
-                    <th>Old Price</th>
-                    <th>New Price</th>
+                    <th>Field</th>
+                    <th>Old Value</th>
+                    <th>New Value</th>
                     <th>Date</th>
                   </tr>
                 </thead>
@@ -293,7 +321,7 @@ function EditLpgPrice() {
                     <tr key={entry.changeId}>
                       <td>{entry.changeId}</td>
                       <td>{entry.category}</td>
-                      <td>₹{entry.oldValue}</td>
+                      <td>{entry.fieldType === "tax" ? `${entry.oldValue}%` : `₹${entry.oldValue}`}</td>
                       <td>
                         <strong
                           style={{
@@ -303,7 +331,7 @@ function EditLpgPrice() {
                                 : "var(--admin-success)",
                           }}
                         >
-                          ₹{entry.newValue}
+                          {entry.fieldType === "tax" ? `${entry.newValue}%` : `₹${entry.newValue}`}
                         </strong>
                       </td>
                       <td>{formatDate(entry.createdAt)}</td>
@@ -320,4 +348,4 @@ function EditLpgPrice() {
   );
 }
 
-export default EditLpgPrice;
+export default EditFeesAndTaxes;

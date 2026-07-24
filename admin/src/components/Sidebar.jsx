@@ -6,6 +6,7 @@ const settingsSubmenu = [
   { to: "/profile", label: "Profile Settings", icon: "bi-person-gear" },
   { to: "/change-password", label: "Change Password", icon: "bi-shield-lock" },
   { to: "/edit-lpg-prices", label: "Edit LPG Price", icon: "bi-currency-rupee" },
+  { to: "/fees-and-taxes", label: "Edit Fees and Taxes", icon: "bi-currency-dollar" },
 ];
 
 function Sidebar({ collapsed }) {

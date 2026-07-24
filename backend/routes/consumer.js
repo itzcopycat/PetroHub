@@ -149,4 +149,25 @@ router.patch("/:id", authMiddleware, async (req, res) => {
   res.json({ consumer });
 });
 
+// routes/consumers.js — add this with the other admin routes,
+// before module.exports
+
+router.get("/:id", authMiddleware, async (req, res) => {
+  try {
+    const consumer = await Consumer.findById(req.params.id).populate(
+      "createdBy",
+      "name"
+    );
+    if (!consumer) {
+      return res.status(404).json({ message: "Consumer not found" });
+    }
+    res.json({ consumer });
+  } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid consumer ID" });
+    }
+    res.status(500).json({ message: "Failed to fetch consumer" });
+  }
+});
+
 module.exports = router;

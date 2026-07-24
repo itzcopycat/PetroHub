@@ -38,7 +38,23 @@ const bookingSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    // Kept for backward compatibility with anything reading booking.price
+    // directly — always equals priceBreakup.total.
     price: { type: Number, default: 0 },
+
+    // Snapshot of PricingSettings at the moment this booking was created.
+    // Deliberately NOT a live lookup — if admin changes prices later, past
+    // bookings should keep showing what the consumer was actually charged.
+    priceBreakup: {
+      cylinderUnitPrice: { type: Number, default: 0 },
+      cylinderPrice: { type: Number, default: 0 }, // cylinderUnitPrice * quantity
+      deliveryFee: { type: Number, default: 0 },
+      platformFee: { type: Number, default: 0 },
+      taxRatePercent: { type: Number, default: 0 },
+      taxAmount: { type: Number, default: 0 },
+      total: { type: Number, default: 0 },
+    },
+
     paymentStatus: {
       type: String,
       enum: ["Unpaid", "Paid", "Refunded"],
@@ -52,6 +68,11 @@ const bookingSchema = new mongoose.Schema(
     specialInstructions: { type: String, default: "" },
 
     assignedDeliveryAgent: { type: String, default: "" },
+    deliveryPartner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DeliveryPartner",
+      default: null,
+    },
     deliveredAt: { type: Date, default: null },
     cancelReason: { type: String, default: "" },
   },

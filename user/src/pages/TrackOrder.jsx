@@ -155,29 +155,22 @@ function TrackOrder() {
                 {/* Progress bar */}
                 <div className="progress-box">
                   <h3>Order Status</h3>
-
                   <div className="progress-bar">
                     {steps.map((step, index) => (
                       <div
                         key={step}
                         className={
-                          "progress-step " +
-                          (index < currentStepIndex
-                            ? "completed"
-                            : index === currentStepIndex
-                            ? "active"
-                            : "")
+                          "progress-step " + (index <= currentStepIndex ? "completed" : "")
                         }
                       >
                         <div className="progress-dot">
-                          {index < currentStepIndex ? "✓" : index + 1}
+                          {index <= currentStepIndex ? "✓" : index + 1}
                         </div>
-                        <p>{stepLabels[step]}</p>
+                        <p>{step}</p>
                         {index < steps.length - 1 && (
                           <div
                             className={
-                              "progress-line " +
-                              (index < currentStepIndex ? "filled" : "")
+                              "progress-line " + (index < currentStepIndex ? "filled" : "")
                             }
                           ></div>
                         )}
