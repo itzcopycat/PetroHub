@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { FaUserPlus, FaEye, FaEyeSlash } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 function calculateAge(dobString) {
   const dob = new Date(dobString);
@@ -28,7 +29,6 @@ function Register() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -50,50 +50,49 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
 
     if (!form.dob) {
-      setError("Date of birth is required.");
+      toast.error("Date of birth is required.");
       return;
     }
 
     if (calculateAge(form.dob) < 18) {
-      setError("You must be at least 18 years old to register.");
+      toast.error("You must be at least 18 years old to register.");
       return;
     }
 
     if (!form.gender) {
-      setError("Please select your gender.");
+      toast.error("Please select your gender.");
       return;
     }
 
     if (form.password !== form.confirmPassword) {
-      setError("Passwords do not match.");
+      toast.error("Passwords do not match.");
       return;
     }
 
     if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      toast.error("Password must be at least 6 characters.");
       return;
     }
 
     if (!/^\d{10}$/.test(form.mobileNumber)) {
-      setError("Mobile number must be exactly 10 digits.");
+      toast.error("Mobile number must be exactly 10 digits.");
       return;
     }
 
     if (!form.address.district.trim()) {
-      setError("District is required.");
+      toast.error("District is required.");
       return;
     }
 
     if (!/^\d{6}$/.test(form.address.pincode)) {
-      setError("Pincode must be exactly 6 digits.");
+      toast.error("Pincode must be exactly 6 digits.");
       return;
     }
 
     if (!agreed) {
-      setError("Please agree to the Terms & Conditions.");
+      toast.error("Please agree to the Terms & Conditions.");
       return;
     }
 
@@ -110,9 +109,10 @@ function Register() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("consumer", JSON.stringify(res.data.consumer));
 
+      toast.success("Account created successfully!");
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+      toast.error(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -131,8 +131,6 @@ function Register() {
 
         <h2>Create Account</h2>
         <p>Join PetroHub and book LPG cylinders easily.</p>
-
-        {error && <div className="form-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
 
@@ -204,7 +202,7 @@ function Register() {
 
           {/* Address */}
           <div className="input-group">
-            <label>Address Line 1</label>
+            <label>Address Line</label>
             <input
               type="text"
               name="address.line1"
@@ -216,11 +214,11 @@ function Register() {
           </div>
 
           <div className="input-group">
-            <label>Address Line 2 (Optional)</label>
+            <label>Lanmark (Optional)</label>
             <input
               type="text"
               name="address.line2"
-              placeholder="Landmark, apartment, etc. (optional)"
+              placeholder="building, apartment, floor etc."
               value={form.address.line2}
               onChange={handleChange}
             />

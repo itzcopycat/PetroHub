@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require("jsonwebtoken");
 const Consumer = require("../models/Consumer");
 const authMiddleware = require("../middleware/auth");
+const consumerAuth = require("../middleware/consumerAuth");
 const generateConsumerId = require("../utils/generateConsumerId");
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -14,6 +15,32 @@ function signToken(consumer) {
     { expiresIn: "7d" }
   );
 }
+
+// ================= CONSUMER: My own profile =================
+// GET /api/consumers/me
+router.get("/me", consumerAuth, async (req, res) => {
+  try {
+    const consumer = await Consumer.findById(req.consumer.id);
+    if (!consumer) {
+      return res.status(404).json({ message: "Consumer not found" });
+    }
+    res.json({
+      consumer: {
+        id: consumer._id,
+        consumerId: consumer.consumerId,
+        name: consumer.name,
+        gender: consumer.gender,
+        dob: consumer.dob,
+        email: consumer.email,
+        mobileNumber: consumer.mobileNumber,
+        address: consumer.address,
+      },
+    });
+  } catch (err) {
+    console.error("Fetch my profile error:", err);
+    res.status(500).json({ message: "Failed to fetch profile" });
+  }
+});
 
 // ================= PUBLIC: Consumer Register =================
 // POST /api/consumers/register
@@ -148,9 +175,6 @@ router.patch("/:id", authMiddleware, async (req, res) => {
   if (!consumer) return res.status(404).json({ message: "Consumer not found" });
   res.json({ consumer });
 });
-
-// routes/consumers.js — add this with the other admin routes,
-// before module.exports
 
 router.get("/:id", authMiddleware, async (req, res) => {
   try {

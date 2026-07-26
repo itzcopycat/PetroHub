@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 const CYLINDER_OPTIONS = [
   { value: "14.2kg", label: "Domestic (14.2 kg)" },
@@ -10,22 +11,58 @@ const CYLINDER_OPTIONS = [
 
 const PAYMENT_OPTIONS = ["Cash on Delivery", "UPI", "Credit / Debit Card"];
 
+function formatFullAddress(address) {
+  if (!address) return "";
+  const parts = [
+    address.line1,
+    address.line2, // landmark
+    address.city,
+    address.district,
+    address.state,
+    address.pincode,
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
 function BookCylinder() {
   const [form, setForm] = useState({
     cylinderType: "",
     quantity: 1,
-    deliveryAddress: "",
     preferredDeliveryDate: "",
     paymentMethod: "",
     specialInstructions: "",
   });
 
+  const [addressDisplay, setAddressDisplay] = useState("");
+  const [addressLoading, setAddressLoading] = useState(true);
+
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
   const [booking, setBooking] = useState(null); // holds the created booking on success
 
   const token =
     localStorage.getItem("token") || sessionStorage.getItem("token");
+
+  // Load the consumer's registered address once on mount, so the delivery
+  // address field can be shown pre-filled and locked (not editable).
+  useEffect(() => {
+    const fetchAddress = async () => {
+      if (!token) {
+        setAddressLoading(false);
+        return;
+      }
+      try {
+        const res = await axios.get("http://localhost:3000/api/consumers/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAddressDisplay(formatFullAddress(res.data.consumer?.address));
+      } catch (err) {
+        toast.error("Could not load your registered address.");
+      } finally {
+        setAddressLoading(false);
+      }
+    };
+    fetchAddress();
+  }, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,12 +73,11 @@ function BookCylinder() {
     e.preventDefault();
 
     if (!token) {
-      setError("Please log in to your account before booking a cylinder.");
+      toast.error("Please log in to your account before booking a cylinder.");
       return;
     }
 
     setSubmitting(true);
-    setError("");
 
     try {
       const res = await axios.post(
@@ -49,7 +85,9 @@ function BookCylinder() {
         {
           cylinderType: form.cylinderType,
           quantity: Number(form.quantity),
-          deliveryAddress: form.deliveryAddress,
+          // deliveryAddress intentionally omitted — the backend already
+          // falls back to the consumer's registered address (structured,
+          // not a single flattened string) whenever this is left out.
           preferredDeliveryDate: form.preferredDeliveryDate || null,
           paymentMethod: form.paymentMethod,
           specialInstructions: form.specialInstructions,
@@ -58,8 +96,9 @@ function BookCylinder() {
       );
 
       setBooking(res.data.booking);
+      toast.success("Cylinder booked successfully!");
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message || "Failed to book cylinder. Please try again."
       );
     } finally {
@@ -77,15 +116,14 @@ function BookCylinder() {
         {!booking ? (
           <form onSubmit={handleSubmit}>
 
-            {error && <p className="booking-error">{error}</p>}
-
             <textarea
               name="deliveryAddress"
-              placeholder="Delivery Address"
+              placeholder={addressLoading ? "Loading your address..." : "Delivery Address"}
               rows="4"
-              value={form.deliveryAddress}
-              onChange={handleChange}
-              required
+              value={addressDisplay}
+              disabled
+              readOnly
+              title="This is your registered address. Update it from your profile to change it."
             ></textarea>
 
             <select

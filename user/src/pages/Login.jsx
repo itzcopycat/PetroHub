@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { FaUserCircle, FaEye, FaEyeSlash } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -15,9 +15,8 @@ function Login() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -26,14 +25,14 @@ function Login() {
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("consumer", JSON.stringify(res.data.consumer));
 
+      toast.success("Logged in successfully!");
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      toast.error(err.response?.data?.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className="login-page">
       <div className="login-card">
@@ -42,8 +41,6 @@ function Login() {
 
         <h2>Welcome Back</h2>
         <p>Login to your PetroHub account</p>
-
-        {error && <div className="form-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
 

@@ -37,8 +37,8 @@ function Footer() {
         <div className="footer-col">
           <h3>Contact</h3>
           <p>📍 Kolkata, India</p>
-          <p>📞 +91 9876543210</p>
-          <p>✉ support@petrohub.com</p>
+          <p>📞 +91 9330294207</p>
+          <p>✉ petrohub.official@gmail.com</p>
         </div>
 
       </div>

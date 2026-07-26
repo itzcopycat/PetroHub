@@ -23,7 +23,8 @@ import Orders from "./pages/Orders.jsx";
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import ScrollToTopButton from "./components/ScrollToTopButton.jsx";
-
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 function App() {
   return (
     <>
@@ -53,6 +54,17 @@ function App() {
 
       <Footer />
       <ScrollToTopButton />
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        theme="colored"
+      />
+
     </>
   );
 }

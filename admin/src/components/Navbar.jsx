@@ -150,11 +150,6 @@ const initials = (name) =>
                 </a>
               </li>
               <li>
-                <a className="dropdown-item" href="settings.html">
-                  Account settings
-                </a>
-              </li>
-              <li>
                 <hr className="dropdown-divider" />
               </li>
               <li>
