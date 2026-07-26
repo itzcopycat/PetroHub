@@ -28,6 +28,8 @@ import EditFeesAndTaxes from "./pages/EditFeesAndTaxes.jsx";
 import Profile from "./pages/Profile.jsx";
 import Reports from "./pages/Reports.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import ChangePassword from "./pages/Changepassword.jsx";
+
 
 function App() {
   return (
@@ -57,6 +59,8 @@ function App() {
             <Route path="/edit-lpg-prices" element={<EditLpgPrice />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/fees-and-taxes" element={<EditFeesAndTaxes />} />
+            <Route path="/change-password" element={<ChangePassword />} />
+
 
             {/* <Route path="add-user" element={<AddUser />} /> */}
             {/* <Route path="profile" element={<Profile />} /> */}

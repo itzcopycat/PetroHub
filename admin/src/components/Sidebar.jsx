@@ -81,7 +81,7 @@ function Sidebar({ collapsed }) {
           <span className="nav-text">Delivery</span>
         </NavLink>
 
-        <NavLink
+        {/* <NavLink
           to="/users"
           className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
         >
@@ -89,7 +89,7 @@ function Sidebar({ collapsed }) {
             <i className="bi bi-currency-rupee" aria-hidden="true" />
           </span>
           <span className="nav-text">Payments</span>
-        </NavLink>
+        </NavLink> */}
 
         <NavLink
           to="/cylinderstock"
@@ -101,7 +101,7 @@ function Sidebar({ collapsed }) {
           <span className="nav-text">Cylinder Stock</span>
         </NavLink>
 
-        <NavLink
+        {/* <NavLink
           to="/users"
           className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
         >
@@ -109,7 +109,7 @@ function Sidebar({ collapsed }) {
             <i className="bi bi-bell" aria-hidden="true" />
           </span>
           <span className="nav-text">Notifications</span>
-        </NavLink>
+        </NavLink> */}
 
         <NavLink
           to="/reports"

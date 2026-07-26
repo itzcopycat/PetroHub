@@ -14,7 +14,8 @@ function formatDate(value) {
 }
 
 function iconFor(cylinderType) {
-  if (cylinderType === "5kg") return "bi-droplet-half";
+  if (cylinderType === "5kg-domestic") return "bi-droplet-half";
+  if (cylinderType === "5kg-ftl") return "bi-truck";
   if (cylinderType === "14.2kg") return "bi-fire";
   return "bi-building";
 }
@@ -30,6 +31,7 @@ function EditLpgPrice() {
 
   const [editingType, setEditingType] = useState(null);
   const [draftPrice, setDraftPrice] = useState("");
+  const [draftGst, setDraftGst] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -55,7 +57,11 @@ function EditLpgPrice() {
     setHistoryLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/pricing/history`, authHeaders);
-      setHistory((res.data.logs || []).filter((log) => log.fieldType === "cylinder"));
+      setHistory(
+        (res.data.logs || []).filter((log) =>
+          ["cylinderPrice", "cylinderGst"].includes(log.fieldType)
+        )
+      );
     } catch {
       // Non-critical — history panel just stays empty on failure.
     } finally {
@@ -71,19 +77,31 @@ function EditLpgPrice() {
 
   const startEdit = (item) => {
     setEditingType(item.cylinderType);
-    setDraftPrice(item.price);
+    setDraftPrice(item.price ?? 0);
+    setDraftGst(item.gstRatePercent ?? 0);
     setSaveError("");
   };
 
   const cancelEdit = () => {
     setEditingType(null);
     setDraftPrice("");
+    setDraftGst("");
     setSaveError("");
   };
 
   const saveEdit = async (item) => {
     const newPrice = Number(draftPrice);
-    if (!newPrice || newPrice <= 0 || newPrice === item.price) {
+    const newGst = Number(draftGst);
+
+    if (Number.isNaN(newPrice) || newPrice <= 0) {
+      setSaveError("Enter a valid price");
+      return;
+    }
+    if (Number.isNaN(newGst) || newGst < 0) {
+      setSaveError("Enter a valid GST rate");
+      return;
+    }
+    if (newPrice === item.price && newGst === item.gstRatePercent) {
       cancelEdit();
       return;
     }
@@ -93,11 +111,11 @@ function EditLpgPrice() {
     try {
       const res = await axios.patch(
         `${API_BASE}/api/pricing/cylinder/${encodeURIComponent(item.cylinderType)}`,
-        { price: newPrice },
+        { price: newPrice, gstRatePercent: newGst },
         authHeaders
       );
       setCylinders(res.data.settings.cylinderPrices || []);
-      setToast(`${item.label} price updated to ₹${newPrice}`);
+      setToast(`${item.label} updated to ₹${newPrice} · ${newGst}% GST`);
       setTimeout(() => setToast(null), 2500);
       cancelEdit();
       fetchHistory();
@@ -121,12 +139,15 @@ function EditLpgPrice() {
               <span className="eyebrow">Inventory Management</span>
               <h1>Edit LPG Price</h1>
               <p className="text-muted mb-0">
-                Update cylinder prices across all categories.
+                Update price and GST rate across all cylinder categories.
               </p>
             </div>
           </div>
 
           <div className="heading-actions">
+            <button className="btn btn-outline-secondary" onClick={() => navigate("/fees-and-taxes")}>
+              <i className="bi bi-receipt-cutoff"></i> Delivery &amp; Platform Fees
+            </button>
             <button className="btn btn-outline-secondary" onClick={() => navigate("/cylinderstock")}>
               <i className="bi bi-arrow-left"></i> Back to Stock
             </button>
@@ -140,19 +161,13 @@ function EditLpgPrice() {
           </div>
         )}
 
-        {saveError && (
-          <div className="alert alert-danger mb-3" style={{ padding: "0.6rem 0.85rem", fontSize: "0.85rem" }}>
-            {saveError}
-          </div>
-        )}
-
         <div className="panel mb-4">
           <div className="panel-header">
             <div>
               <h2 className="section-title" style={{ fontSize: "1.1rem", margin: 0 }}>
                 <i className="bi bi-grid-1x2"></i> Cylinder Pricing
               </h2>
-              <p className="text-muted mb-0">Mini, Domestic and Commercial cylinders</p>
+              <p className="text-muted mb-0">Mini Domestic, FTL Mini, Domestic and Commercial cylinders</p>
             </div>
             <button className="btn btn-outline-secondary btn-sm" onClick={fetchSettings}>
               <i className="bi bi-arrow-clockwise"></i> Refresh
@@ -169,7 +184,7 @@ function EditLpgPrice() {
                 const isEditing = editingType === item.cylinderType;
 
                 return (
-                  <div className="col-12 col-md-6 col-lg-4" key={item.cylinderType}>
+                  <div className="col-12 col-md-6 col-lg-3" key={item.cylinderType}>
                     <div
                       className="mini-card"
                       style={{ display: "grid", gap: "0.75rem", minHeight: "auto", padding: "1.1rem" }}
@@ -180,10 +195,10 @@ function EditLpgPrice() {
                             <i className={`bi ${iconFor(item.cylinderType)}`}></i>
                           </span>
                           <div>
-                            <strong style={{ display: "block", fontSize: "0.98rem" }}>
+                            <strong style={{ display: "block", fontSize: "0.95rem" }}>
                               {item.label}
                             </strong>
-                            <span>{item.cylinderType}</span>
+                            <span style={{ fontSize: "0.78rem" }}>{item.primaryUsage}</span>
                           </div>
                         </div>
 
@@ -201,9 +216,14 @@ function EditLpgPrice() {
 
                       {isEditing ? (
                         <>
+                          {saveError && (
+                            <div className="alert alert-danger mb-0" style={{ padding: "0.4rem 0.6rem", fontSize: "0.78rem" }}>
+                              {saveError}
+                            </div>
+                          )}
                           <div>
                             <label className="form-label" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
-                              New Price (₹)
+                              Price (₹)
                             </label>
                             <input
                               type="number"
@@ -212,6 +232,20 @@ function EditLpgPrice() {
                               value={draftPrice}
                               onChange={(e) => setDraftPrice(e.target.value)}
                               autoFocus
+                              disabled={saving}
+                            />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+                              GST Rate (%)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="form-control"
+                              value={draftGst}
+                              onChange={(e) => setDraftGst(e.target.value)}
                               disabled={saving}
                             />
                           </div>
@@ -238,11 +272,23 @@ function EditLpgPrice() {
                         <>
                           <div className="d-flex justify-content-between align-items-baseline">
                             <span className="text-muted" style={{ fontSize: "0.85rem" }}>
-                              Current Price
+                              Price
                             </span>
-                            <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>
+                            <span style={{ fontSize: "1.3rem", fontWeight: 800 }}>
                               ₹{item.price}
                             </span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-baseline">
+                            <span className="text-muted" style={{ fontSize: "0.85rem" }}>
+                              GST Rate
+                            </span>
+                            <span style={{ fontSize: "1rem", fontWeight: 700 }}>
+                              {item.gstRatePercent ?? 0}%
+                            </span>
+                          </div>
+                          <div className="d-flex justify-content-between" style={{ fontSize: "0.78rem" }}>
+                            <span className="text-muted">Address Proof</span>
+                            <span>{item.addressProofRequired ? "Required" : "Not required"}</span>
                           </div>
                           <div className="d-flex justify-content-between" style={{ fontSize: "0.78rem" }}>
                             <span className="text-muted">Last updated</span>
@@ -264,7 +310,7 @@ function EditLpgPrice() {
               <h2 className="section-title" style={{ fontSize: "1.1rem", margin: 0 }}>
                 <i className="bi bi-clock-history"></i> Price Change History
               </h2>
-              <p className="text-muted mb-0">Recent cylinder price updates</p>
+              <p className="text-muted mb-0">Recent cylinder price and GST updates</p>
             </div>
           </div>
 
@@ -283,8 +329,9 @@ function EditLpgPrice() {
                   <tr>
                     <th>Change ID</th>
                     <th>Category</th>
-                    <th>Old Price</th>
-                    <th>New Price</th>
+                    <th>Field</th>
+                    <th>Old Value</th>
+                    <th>New Value</th>
                     <th>Date</th>
                   </tr>
                 </thead>
@@ -293,7 +340,10 @@ function EditLpgPrice() {
                     <tr key={entry.changeId}>
                       <td>{entry.changeId}</td>
                       <td>{entry.category}</td>
-                      <td>₹{entry.oldValue}</td>
+                      <td>{entry.fieldType === "cylinderGst" ? "GST Rate" : "Price"}</td>
+                      <td>
+                        {entry.unit === "percent" ? `${entry.oldValue}%` : `₹${entry.oldValue}`}
+                      </td>
                       <td>
                         <strong
                           style={{
@@ -303,7 +353,7 @@ function EditLpgPrice() {
                                 : "var(--admin-success)",
                           }}
                         >
-                          ₹{entry.newValue}
+                          {entry.unit === "percent" ? `${entry.newValue}%` : `₹${entry.newValue}`}
                         </strong>
                       </td>
                       <td>{formatDate(entry.createdAt)}</td>

@@ -15,6 +15,22 @@ function getStatusBadgeClass(status) {
   }
 }
 
+function getInitials(name) {
+  return (name || "User")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+}
+
+function resolveAvatarUrl(avatarUrl) {
+  if (!avatarUrl) return "";
+  return avatarUrl.startsWith("http")
+    ? avatarUrl
+    : `http://localhost:3000${avatarUrl}`;
+}
+
 function Consumers() {
   const [consumers, setConsumers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -214,13 +230,21 @@ function Consumers() {
                           <div className="d-flex align-items-center gap-2">
                             <img
                               className="avatar-img avatar-sm"
-                              src={
-                                consumer.avatarUrl
-                                  ? `http://localhost:3000${consumer.avatarUrl}`
-                                  : "/assets/images/avatar/avatar.jpg"
-                              }
-                              alt={consumer.name}
+                              src={resolveAvatarUrl(consumer.avatarUrl)}
+                              alt={consumer.name || "User"}
+                              style={{ display: consumer.avatarUrl ? "block" : "none" }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                e.currentTarget.nextElementSibling.style.display = "flex";
+                              }}
                             />
+                            <span
+                              className="avatar-img avatar-sm avatar-initials d-flex"
+                              style={{ display: consumer.avatarUrl ? "none" : "flex" }}
+                              aria-label={`${consumer.name || "User"} initials`}
+                            >
+                              {getInitials(consumer.name)}
+                            </span>
                             <div>
                               <p className="fw-semibold mb-0">{consumer.name}</p>
                               <p className="text-muted small mb-0">

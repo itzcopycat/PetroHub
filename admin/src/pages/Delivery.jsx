@@ -3,12 +3,19 @@ import axios from "axios";
 
 const API_BASE = "http://localhost:3000";
 
+const CYLINDER_LABELS = {
+  "14.2kg": "Domestic (14.2 kg)",
+  "19kg": "Commercial (19 kg)",
+  "5kg": "Mini (5 kg)",
+  "5kg-ftl": "Mini FTL (5 kg)",
+  "5kg-domestic": "Mini Domestic (5 kg)",
+};
+
 const emptyForm = {
   name: "",
   phone: "",
   area: "",
   dailyCapacity: "",
-  rating: "",
 };
 
 function ratingBadgeClass(rating) {
@@ -163,7 +170,6 @@ function Delivery() {
       phone: partner.phone,
       area: partner.area,
       dailyCapacity: partner.dailyCapacity,
-      rating: partner.rating,
     });
     setFormError("");
     setShowModal(true);
@@ -192,7 +198,6 @@ function Delivery() {
       phone: form.phone.trim(),
       area: form.area.trim(),
       dailyCapacity: Number(form.dailyCapacity),
-      rating: form.rating ? Number(form.rating) : 0,
     };
 
     setSavingPartner(true);
@@ -334,7 +339,7 @@ function Delivery() {
                         <p className="fw-semibold mb-0">{booking.consumerName}</p>
                         <p className="text-muted small mb-0">{booking.phone}</p>
                       </td>
-                      <td>{booking.cylinderType}</td>
+                      <td>{CYLINDER_LABELS[booking.cylinderType] || booking.cylinderType}</td>
                       <td>{booking.quantity}</td>
                       <td className="text-muted small">
                         {[
@@ -577,37 +582,19 @@ function Delivery() {
                           onChange={handleFormChange("area")}
                         />
                       </div>
-                      <div className="row">
-                        <div className="col-6 mb-3">
-                          <label className="form-label" htmlFor="partnerCapacity">
-                            Daily delivery capacity
-                          </label>
-                          <input
-                            id="partnerCapacity"
-                            type="number"
-                            min="1"
-                            className="form-control"
-                            placeholder="e.g. 40"
-                            value={form.dailyCapacity}
-                            onChange={handleFormChange("dailyCapacity")}
-                          />
-                        </div>
-                        <div className="col-6 mb-3">
-                          <label className="form-label" htmlFor="partnerRating">
-                            Rating (0-5)
-                          </label>
-                          <input
-                            id="partnerRating"
-                            type="number"
-                            min="0"
-                            max="5"
-                            step="0.1"
-                            className="form-control"
-                            placeholder="e.g. 4.5"
-                            value={form.rating}
-                            onChange={handleFormChange("rating")}
-                          />
-                        </div>
+                      <div className="mb-3">
+                        <label className="form-label" htmlFor="partnerCapacity">
+                          Daily delivery capacity
+                        </label>
+                        <input
+                          id="partnerCapacity"
+                          type="number"
+                          min="1"
+                          className="form-control"
+                          placeholder="e.g. 40"
+                          value={form.dailyCapacity}
+                          onChange={handleFormChange("dailyCapacity")}
+                        />
                       </div>
                     </div>
                     <div className="modal-footer">

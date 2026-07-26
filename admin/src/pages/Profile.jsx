@@ -10,6 +10,7 @@ function Profile() {
   const [rawImageSrc, setRawImageSrc] = useState("");
   const [avatarBlob, setAvatarBlob] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -158,6 +159,13 @@ function Profile() {
       .map((n) => n[0].toUpperCase())
       .join("");
 
+  const resolvedAvatarSrc =
+    avatarPreview || (admin?.avatarUrl ? `http://localhost:3000${admin.avatarUrl}` : "");
+
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [resolvedAvatarSrc]);
+
   if (!admin) {
     return (
       <main className="dashboard-content">
@@ -168,8 +176,7 @@ function Profile() {
     );
   }
 
-  const resolvedAvatarSrc =
-    avatarPreview || (admin.avatarUrl ? `http://localhost:3000${admin.avatarUrl}` : "");
+  const showAvatarImage = resolvedAvatarSrc && !avatarLoadFailed;
 
   return (
     <main className="dashboard-content">
@@ -194,15 +201,12 @@ function Profile() {
 
         <section className="panel profile-card mt-3">
           <div className="profile-hero">
-            {resolvedAvatarSrc ? (
+            {showAvatarImage ? (
               <img
                 className="avatar-img avatar-xl profile-photo"
                 src={resolvedAvatarSrc}
-                alt={admin.name}
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.style.display = "none";
-                }}
+                alt={admin.name || "Admin"}
+                onError={() => setAvatarLoadFailed(true)}
               />
             ) : (
               <div
@@ -213,8 +217,9 @@ function Profile() {
                   fontSize: "clamp(20px, 4vw, 28px)",
                   fontWeight: 600,
                 }}
+                aria-label={`${admin.name || "Admin"} profile initials`}
               >
-                {initials(admin.name)}
+                {initials(admin.name || "Admin")}
               </div>
             )}
 

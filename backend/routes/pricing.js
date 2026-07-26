@@ -17,16 +17,26 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 // PATCH /api/pricing/cylinder/:cylinderType
+// Body may include either or both: { price, gstRatePercent }
 router.patch("/cylinder/:cylinderType", authMiddleware, async (req, res) => {
   try {
     const { cylinderType } = req.params;
-    const { price } = req.body;
+    const { price, gstRatePercent } = req.body;
 
     if (!CYLINDER_LABELS[cylinderType]) {
       return res.status(400).json({ message: "Unknown cylinder type" });
     }
-    if (!price || price <= 0) {
+    if (price === undefined && gstRatePercent === undefined) {
+      return res.status(400).json({ message: "Provide a price and/or gstRatePercent to update" });
+    }
+    if (price !== undefined && (typeof price !== "number" || price <= 0)) {
       return res.status(400).json({ message: "A valid price is required" });
+    }
+    if (
+      gstRatePercent !== undefined &&
+      (typeof gstRatePercent !== "number" || gstRatePercent < 0)
+    ) {
+      return res.status(400).json({ message: "A valid GST rate is required" });
     }
 
     const settings = await getOrCreateSettings();
@@ -34,29 +44,47 @@ router.patch("/cylinder/:cylinderType", authMiddleware, async (req, res) => {
     if (!entry) {
       return res.status(404).json({ message: "Cylinder type not found in settings" });
     }
-    if (entry.price === price) {
+
+    const logs = [];
+
+    if (price !== undefined && price !== entry.price) {
+      logs.push({
+        fieldType: "cylinderPrice",
+        category: `${entry.label} (${cylinderType})`,
+        unit: "currency",
+        oldValue: entry.price,
+        newValue: price,
+      });
+      entry.price = price;
+    }
+
+    if (gstRatePercent !== undefined && gstRatePercent !== entry.gstRatePercent) {
+      logs.push({
+        fieldType: "cylinderGst",
+        category: `${entry.label} (${cylinderType})`,
+        unit: "percent",
+        oldValue: entry.gstRatePercent,
+        newValue: gstRatePercent,
+      });
+      entry.gstRatePercent = gstRatePercent;
+    }
+
+    if (logs.length === 0) {
       return res.json({ settings });
     }
 
-    const oldPrice = entry.price;
-    entry.price = price;
     entry.lastUpdated = new Date();
     await settings.save();
 
-    const changeId = await generatePriceChangeId();
-    await PriceChangeLog.create({
-      changeId,
-      fieldType: "cylinder",
-      category: `${entry.label} (${cylinderType})`,
-      oldValue: oldPrice,
-      newValue: price,
-      changedBy: req.admin?.id,
-    });
+    for (const log of logs) {
+      const changeId = await generatePriceChangeId();
+      await PriceChangeLog.create({ ...log, changeId, changedBy: req.admin?.id });
+    }
 
     res.json({ settings });
   } catch (err) {
-    console.error("Update cylinder price error:", err);
-    res.status(500).json({ message: "Failed to update cylinder price" });
+    console.error("Update cylinder pricing error:", err);
+    res.status(500).json({ message: "Failed to update cylinder pricing" });
   }
 });
 
@@ -82,6 +110,7 @@ async function updateFlatField({ fieldKey, category, fieldType, req, res }) {
     changeId,
     fieldType,
     category,
+    unit: "currency",
     oldValue,
     newValue: value,
     changedBy: req.admin?.id,
@@ -119,22 +148,6 @@ router.patch("/platform-fee", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Update platform fee error:", err);
     res.status(500).json({ message: "Failed to update platform fee" });
-  }
-});
-
-// PATCH /api/pricing/tax
-router.patch("/tax", authMiddleware, async (req, res) => {
-  try {
-    await updateFlatField({
-      fieldKey: "taxRatePercent",
-      category: "GST / Tax Rate",
-      fieldType: "tax",
-      req,
-      res,
-    });
-  } catch (err) {
-    console.error("Update tax rate error:", err);
-    res.status(500).json({ message: "Failed to update tax rate" });
   }
 });
 

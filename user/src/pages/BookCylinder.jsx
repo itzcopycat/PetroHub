@@ -4,7 +4,8 @@ import axios from "axios";
 const CYLINDER_OPTIONS = [
   { value: "14.2kg", label: "Domestic (14.2 kg)" },
   { value: "19kg", label: "Commercial (19 kg)" },
-  { value: "5kg", label: "Mini (5 kg)" },
+  { value: "5kg-domestic", label: "Mini Domestic (5 kg)" },
+  { value: "5kg-ftl", label: "Free Trade LPG Mini (5 kg) — no proof needed" },
 ];
 
 const PAYMENT_OPTIONS = ["Cash on Delivery", "UPI", "Credit / Debit Card"];

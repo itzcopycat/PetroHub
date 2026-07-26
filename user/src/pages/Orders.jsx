@@ -8,9 +8,19 @@ const CYLINDER_LABELS = {
   "14.2kg": "Domestic (14.2 kg)",
   "19kg": "Commercial (19 kg)",
   "5kg": "Mini (5 kg)",
+  "5kg-ftl": "Mini FTL (5 kg)",
+  "5kg-domestic": "Mini Domestic (5 kg)",
 };
 
 const steps = ["Pending", "Confirmed", "Delivered"];
+
+const RATING_LABELS = {
+  1: "Very Poor",
+  2: "Poor",
+  3: "Good",
+  4: "Very Good",
+  5: "Excellent",
+};
 
 const statusMeta = {
   Pending: { label: "Pending", className: "badge-pending" },
@@ -36,6 +46,26 @@ function formatAddress(addr) {
   return parts.length ? parts.join(", ") : "—";
 }
 
+function StarIcon({ filled, size = 30 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <path
+        d="M12 2.9l2.79 5.94 6.51.67-4.86 4.5 1.35 6.42L12 17.35l-5.79 3.08 1.35-6.42-4.86-4.5 6.51-.67L12 2.9z"
+        fill={filled ? "url(#starGradient)" : "#E7E9ED"}
+        stroke={filled ? "#E8791A" : "#C9CED6"}
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+      <defs>
+        <linearGradient id="starGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFB648" />
+          <stop offset="100%" stopColor="#FF7A1A" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 function Orders() {
   // ✅ ALL state and functions declared at the top — before any return
   const [orders, setOrders] = useState([]);
@@ -44,6 +74,7 @@ function Orders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -103,6 +134,38 @@ function Orders() {
       return false;
     } finally {
       setReporting(false);
+    }
+  }
+
+  // 🔧 Hook this up to your backend's rating endpoint. This also updates the
+  // assigned delivery partner's aggregate rating, which is what powers the
+  // "Rating" badge on the admin Delivery Partners screen.
+  async function rateOrder(orderId, rating) {
+    setRatingSubmitting(true);
+    try {
+      await axios.post(
+        `${API_BASE}/api/bookings/${orderId}/rate`,
+        { rating },
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+
+      // Re-sync from the backend (source of truth) instead of trusting local
+      // state. This guarantees that if the user navigates back to the list
+      // and reopens this same order, it shows as already rated — closing
+      // the window where a stale local copy could let them try again.
+      const res = await axios.get(`${API_BASE}/api/bookings/me`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const freshOrders = res.data.bookings || [];
+      setOrders(freshOrders);
+      setSelectedOrder((prev) => freshOrders.find((o) => o._id === orderId) || prev);
+
+      return true;
+    } catch (err) {
+      alert(err.response?.data?.message || "Could not submit rating. Try again.");
+      return false;
+    } finally {
+      setRatingSubmitting(false);
     }
   }
 
@@ -187,22 +250,74 @@ function Orders() {
           onBack={goBack}
           onCancel={cancelOrder}
           onReport={reportOrder}
+          onRate={rateOrder}
           cancelling={cancelling}
           reporting={reporting}
+          ratingSubmitting={ratingSubmitting}
         />
       )}
     </div>
   );
 }
 
-function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting }) {
+function OrderDetail({
+  order,
+  onBack,
+  onCancel,
+  onReport,
+  onRate,
+  cancelling,
+  reporting,
+  ratingSubmitting,
+}) {
   const currentStepIndex = steps.indexOf(order.status);
   const isCancelled = order.status === "Cancelled";
+  const isDelivered = order.status === "Delivered";
 
- const [showReportModal, setShowReportModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Rating flow — only relevant once the order has been delivered.
+  // `hasRated` seeds from order.rating/order.deliveryRating in case the
+  // backend already returns a previously-submitted rating for this booking.
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [hasRated, setHasRated] = useState(
+    Boolean(order.rating || order.deliveryRating)
+  );
+
+  // Re-derive hasRated any time the order prop actually changes (not just on
+  // first mount) — e.g. after the resync in rateOrder() updates selectedOrder
+  // in place without necessarily remounting this component. Without this,
+  // hasRated could be computed once from a stale/incomplete order object and
+  // never correct itself, letting the rate flow reopen even though the
+  // booking is already rated on the backend.
+  useEffect(() => {
+    setHasRated(Boolean(order.rating || order.deliveryRating));
+  }, [order._id, order.rating, order.deliveryRating]);
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyBookingId = async () => {
+    try {
+      await navigator.clipboard.writeText(order.bookingId);
+    } catch (err) {
+      // Clipboard API unavailable/blocked — fall back to a manual copy
+      const textarea = document.createElement("textarea");
+      textarea.value = order.bookingId;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Static price breakup — same mock values as TrackOrder.jsx.
   // Replace with real values from your backend once bookings return a price breakdown.
@@ -226,6 +341,19 @@ function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting 
     if (ok) setReportSubmitted(true);
   };
 
+  const closeRateModal = () => {
+    setShowRateModal(false);
+    setSelectedRating(0);
+    setHoverRating(0);
+  };
+
+  const handleRateSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedRating || hasRated) return;
+    const ok = await onRate(order._id, selectedRating);
+    if (ok) setHasRated(true);
+  };
+
   return (
     <div className="order-detail-card">
       <button className="back-btn" onClick={onBack}>
@@ -239,7 +367,22 @@ function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting 
       <div className="details-grid">
         <div>
           <span>Booking ID</span>
-          <h4>{order.bookingId}</h4>
+          <div className="booking-id-row">
+            <h4>{order.bookingId}</h4>
+            <button
+              type="button"
+              className={`copy-btn${copied ? " is-copied" : ""}`}
+              onClick={handleCopyBookingId}
+              title="Copy Booking ID"
+              aria-label="Copy Booking ID"
+            >
+              <i
+                className={`bi ${copied ? "bi-clipboard-check-fill" : "bi-clipboard"}`}
+                aria-hidden="true"
+              />
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
         </div>
 
         <div>
@@ -363,21 +506,30 @@ function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting 
               Falls back to the legacy assignedDeliveryAgent string if a
               partner was assigned before this field existed. */}
           {(order.deliveryPartner || order.assignedDeliveryAgent) && (
-            <div className="delivery-box">
-              <h3>Delivery Partner</h3>
-              <p>
-                <strong>Name:</strong>{" "}
-                {order.deliveryPartner?.name || order.assignedDeliveryAgent}
-              </p>
-              {order.deliveryPartner?.phone && (
+            <div className="delivery-box delivery-box-with-rating">
+              <div>
+                <h3>Delivery Partner</h3>
                 <p>
-                  <strong>Phone:</strong> {order.deliveryPartner.phone}
+                  <strong>Name:</strong>{" "}
+                  {order.deliveryPartner?.name || order.assignedDeliveryAgent}
                 </p>
+                {order.deliveryPartner?.phone && (
+                  <p>
+                    <strong>Phone:</strong> {order.deliveryPartner.phone}
+                  </p>
+                )}
+              </div>
+
+              {typeof order.deliveryPartner?.rating === "number" && (
+                <div className="partner-rating-pill" title="Delivery partner's overall rating">
+                  <StarIcon filled size={16} />
+                  <span>{order.deliveryPartner.rating.toFixed(1)}</span>
+                </div>
               )}
             </div>
           )}
 
-          {/* Actions — Report a Spam + Cancel Order */}
+          {/* Actions — Report a Spam + Cancel Order / Rate Delivery Experience */}
           <div className="track-actions">
             <button
               className="report-btn"
@@ -386,14 +538,32 @@ function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting 
               ⚠ Report a Problem
             </button>
 
-            {(order.status === "Pending" || order.status === "Confirmed") && (
+            {isDelivered ? (
               <button
-                className="cancel-btn"
-                onClick={() => setShowCancelModal(true)}
-                disabled={cancelling}
+                className={`rate-btn${hasRated ? " is-rated" : ""}`}
+                onClick={() => {
+                  if (!hasRated) setShowRateModal(true);
+                }}
+                disabled={hasRated}
               >
-                {cancelling ? "Cancelling…" : "Cancel Order"}
+                {hasRated ? (
+                  "✓ Experience Rated"
+                ) : (
+                  <>
+                    <StarIcon filled size={16} /> Rate Delivery Experience
+                  </>
+                )}
               </button>
+            ) : (
+              (order.status === "Pending" || order.status === "Confirmed") && (
+                <button
+                  className="cancel-btn"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={cancelling}
+                >
+                  {cancelling ? "Cancelling…" : "Cancel Order"}
+                </button>
+              )
             )}
           </div>
         </>
@@ -445,6 +615,80 @@ function OrderDetail({ order, onBack, onCancel, onReport, cancelling, reporting 
                 </p>
                 <div className="modal-actions">
                   <button className="modal-btn-primary" onClick={closeReportModal}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Rate Delivery Experience modal */}
+      {showRateModal && (
+        <div className="modal-overlay" onClick={closeRateModal}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            {!hasRated ? (
+              <>
+                <h3>Rate Delivery Experience</h3>
+                <p>How was your delivery for booking {order.bookingId}?</p>
+
+                <form onSubmit={handleRateSubmit}>
+                  <div
+                    className="star-rating"
+                    role="radiogroup"
+                    aria-label="Delivery rating"
+                  >
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const active = (hoverRating || selectedRating) >= star;
+                      return (
+                        <button
+                          type="button"
+                          key={star}
+                          className={`star-btn${active ? " is-active" : ""}`}
+                          aria-label={`${star} star${star > 1 ? "s" : ""}`}
+                          aria-pressed={selectedRating === star}
+                          onClick={() => setSelectedRating(star)}
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                        >
+                          <StarIcon filled={active} />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <p className="star-rating-caption">
+                    {RATING_LABELS[hoverRating || selectedRating] || "Tap a star to rate"}
+                  </p>
+
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="modal-btn-outline"
+                      onClick={closeRateModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="modal-btn-primary"
+                      disabled={!selectedRating || ratingSubmitting}
+                    >
+                      {ratingSubmitting ? "Submitting…" : "Submit Rating"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <h3>✅ Thanks for rating!</h3>
+                <p>
+                  Your feedback for booking {order.bookingId} has been
+                  recorded and helps us keep delivery quality high.
+                </p>
+                <div className="modal-actions">
+                  <button className="modal-btn-primary" onClick={closeRateModal}>
                     Close
                   </button>
                 </div>

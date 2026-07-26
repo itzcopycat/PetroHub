@@ -1,57 +1,104 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
-// Mock data — replace with real inventory + history API calls later
 const categories = [
-  { id: "mini", label: "Mini Cylinder (5 kg)" },
-  { id: "domestic", label: "Domestic Cylinder (14.2 kg)" },
-  { id: "commercial", label: "Commercial Cylinder (19 kg)" },
-];
-
-const suppliers = ["IndianOil Distributor", "HP Gas Depot", "Bharat Gas Warehouse"];
-
-const initialHistory = [
-  
+  { id: "14.2kg", label: "Domestic Cylinder (14.2 kg)" },
+  { id: "19kg", label: "Commercial Cylinder (19 kg)" },
+  { id: "5kg-ftl", label: "Mini Cylinder FTL (5 kg)" },
+  { id: "5kg-domestic", label: "Mini Cylinder Domestic (5 kg)" },
 ];
 
 const statusMeta = {
-  received: { label: "Received", var: "--admin-success" },
-  pending: { label: "Pending", var: "--admin-warning" },
-  cancelled: { label: "Cancelled", var: "--admin-danger" },
+  Received: { label: "Received", var: "--admin-success" },
+  Pending: { label: "Pending", var: "--admin-warning" },
+  Cancelled: { label: "Cancelled", var: "--admin-danger" },
 };
 
-function RestockCylinders({ onBack }) {
-  const [history, setHistory] = useState(initialHistory);
+function RestockCylinders() {
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+  const authHeader = { headers: { Authorization: `Bearer ${token}` } };
+
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [error, setError] = useState("");
+
   const [form, setForm] = useState({
     category: categories[0].id,
     quantity: "",
     date: "",
     notes: "",
   });
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [actionErrorId, setActionErrorId] = useState(null);
+
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await axios.get("http://localhost:3000/api/inventory/restock", authHeader);
+      setHistory(res.data.requests || []);
+    } catch (err) {
+      setError("Could not load restock history.");
+    } finally {
+      setHistoryLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.quantity || !form.date) return;
 
-    const categoryLabel = categories.find((c) => c.id === form.category)?.label;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await axios.post(
+        "http://localhost:3000/api/inventory/restock",
+        {
+          cylinderType: form.category,
+          quantity: Number(form.quantity),
+          expectedDate: form.date,
+          notes: form.notes,
+        },
+        authHeader
+      );
 
-    const newEntry = {
-      id: `RS${Math.floor(2026000 + Math.random() * 999)}`,
-      category: categoryLabel,
-      quantity: Number(form.quantity),
-      date: form.date,
-      status: "pending",
-    };
-
-    setHistory((prev) => [newEntry, ...prev]);
-    setForm({ category: categories[0].id, quantity: "", supplier: suppliers[0], date: "", notes: "" });
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 2500);
+      setHistory((prev) => [res.data.request, ...prev]);
+      setForm({ category: categories[0].id, quantity: "", date: "", notes: "" });
+      setSubmitted(true);
+      setTimeout(() => setSubmitted(false), 2500);
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not submit restock request.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const updateRequestStatus = async (id, status) => {
+    setActionErrorId(null);
+    try {
+      const res = await axios.patch(
+        `http://localhost:3000/api/inventory/restock/${id}`,
+        { status },
+        authHeader
+      );
+      setHistory((prev) => prev.map((r) => (r._id === id ? res.data.request : r)));
+    } catch (err) {
+      setActionErrorId(id);
+    }
+  };
+
+  const categoryLabel = (id) => categories.find((c) => c.id === id)?.label || id;
 
   return (
     <div className="dashboard-content">
@@ -78,6 +125,8 @@ function RestockCylinders({ onBack }) {
             </button>
           </div>
         </div>
+
+        {error && <div className="alert alert-danger py-2">{error}</div>}
 
         <div className="row g-3">
 
@@ -159,8 +208,9 @@ function RestockCylinders({ onBack }) {
                   ></textarea>
                 </div>
 
-                <button type="submit" className="btn btn-primary text-white w-100">
-                  <i className="bi bi-check-lg"></i> Submit Restock Request
+                <button type="submit" className="btn btn-primary text-white w-100" disabled={submitting}>
+                  <i className="bi bi-check-lg"></i>{" "}
+                  {submitting ? "Submitting…" : "Submit Restock Request"}
                 </button>
               </form>
             </div>
@@ -179,43 +229,79 @@ function RestockCylinders({ onBack }) {
               </div>
 
               <div className="table-responsive">
-                <table className="table align-middle">
-                  <thead>
-                    <tr>
-                      <th>Request ID</th>
-                      <th>Category</th>
-                      <th>Qty</th>
-                      <th>Date</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((entry) => {
-                      const meta = statusMeta[entry.status];
-                      return (
-                        <tr key={entry.id}>
-                          <td>{entry.id}</td>
-                          <td>{entry.category}</td>
-                          <td>{entry.quantity}</td>
-                          <td>{entry.date}</td>
-                          <td>
-                            <span
-                              className="badge"
-                              style={{
-                                color: `var(${meta.var})`,
-                                background: `color-mix(in srgb, var(${meta.var}) 14%, transparent)`,
-                                fontWeight: 700,
-                                fontSize: "0.72rem",
-                              }}
-                            >
-                              {meta.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                {historyLoading ? (
+                  <p className="text-muted mb-0 py-3">Loading history…</p>
+                ) : history.length === 0 ? (
+                  <p className="text-muted mb-0 py-3">No restock requests yet.</p>
+                ) : (
+                  <table className="table align-middle">
+                    <thead>
+                      <tr>
+                        <th>Request ID</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Expected</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((entry) => {
+                        const meta = statusMeta[entry.status];
+                        return (
+                          <tr key={entry._id}>
+                            <td>{entry.requestId}</td>
+                            <td>{categoryLabel(entry.cylinderType)}</td>
+                            <td>{entry.quantity}</td>
+                            <td>
+                              {entry.expectedDate
+                                ? new Date(entry.expectedDate).toLocaleDateString("en-IN")
+                                : "-"}
+                            </td>
+                            <td>
+                              <span
+                                className="badge"
+                                style={{
+                                  color: `var(${meta.var})`,
+                                  background: `color-mix(in srgb, var(${meta.var}) 14%, transparent)`,
+                                  fontWeight: 700,
+                                  fontSize: "0.72rem",
+                                }}
+                              >
+                                {meta.label}
+                              </span>
+                            </td>
+                            <td>
+                              {entry.status === "Pending" && (
+                                <div className="d-flex gap-1">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-success"
+                                    onClick={() => updateRequestStatus(entry._id, "Received")}
+                                  >
+                                    Mark Received
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={() => updateRequestStatus(entry._id, "Cancelled")}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
+                              {actionErrorId === entry._id && (
+                                <div className="text-danger" style={{ fontSize: "0.72rem" }}>
+                                  Action failed — try again.
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>

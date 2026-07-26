@@ -36,8 +36,17 @@ function getStatusBadgeClass(status) {
   }
 }
 
+function getInitials(name) {
+  return (name || "User")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+}
+
 function resolveAvatarUrl(avatarUrl) {
-  if (!avatarUrl) return "/assets/images/avatar/avatar.jpg";
+  if (!avatarUrl) return "";
   return avatarUrl.startsWith("http")
     ? avatarUrl
     : `http://localhost:3000${avatarUrl}`;
@@ -164,8 +173,20 @@ function ConsumerDetail() {
                 <img
                   className="avatar-img avatar-lg mb-3"
                   src={resolveAvatarUrl(consumer.avatarUrl)}
-                  alt={consumer.name}
+                  alt={consumer.name || "User"}
+                  style={{ display: consumer.avatarUrl ? "block" : "none" }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    e.currentTarget.nextElementSibling.style.display = "flex";
+                  }}
                 />
+                <span
+                  className="avatar-img avatar-lg avatar-initials d-flex mb-3"
+                  style={{ display: consumer.avatarUrl ? "none" : "flex" }}
+                  aria-label={`${consumer.name || "User"} initials`}
+                >
+                  {getInitials(consumer.name)}
+                </span>
                 <h3 className="h5 mb-1">{consumer.name}</h3>
                 <p className="text-muted small mb-2">{consumer.consumerId}</p>
                 <div className="d-flex gap-2 mb-3">

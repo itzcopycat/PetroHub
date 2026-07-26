@@ -1,43 +1,6 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-
-// Mock data — replace with a real API/inventory call later
-const mockStock = [
-  {
-    id: "mini",
-    label: "Mini Cylinder",
-    weight: "5 kg",
-    total: 120,
-    available: 18,
-    reserved: 12,
-    lowStockThreshold: 20,
-    price: 450,
-    icon: "bi-droplet-half",
-  },
-  {
-    id: "domestic",
-    label: "Domestic Cylinder",
-    weight: "14.2 kg",
-    total: 300,
-    available: 86,
-    reserved: 40,
-    lowStockThreshold: 50,
-    price: 850,
-    icon: "bi-fire",
-  },
-  {
-    id: "commercial",
-    label: "Commercial Cylinder",
-    weight: "19 kg",
-    total: 150,
-    available: 9,
-    reserved: 6,
-    lowStockThreshold: 15,
-    price: 1750,
-    icon: "bi-building",
-  },
-];
+import axios from "axios";
 
 function getStockLevel(item) {
   if (item.available <= item.lowStockThreshold) return "critical";
@@ -52,8 +15,32 @@ const levelMeta = {
 };
 
 function CylinderStock() {
-  const [stock] = useState(mockStock);
   const navigate = useNavigate();
+  const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+  const [stock, setStock] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchStock = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axios.get("http://localhost:3000/api/inventory", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStock(res.data.stock || []);
+    } catch (err) {
+      setError("Could not load cylinder stock.");
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchStock();
+  }, [fetchStock]);
 
   const totals = stock.reduce(
     (acc, item) => {
@@ -85,7 +72,7 @@ function CylinderStock() {
           </div>
 
           <div className="heading-actions">
-            <button className="btn btn-outline-secondary">
+            <button className="btn btn-outline-secondary" onClick={fetchStock} disabled={loading}>
               <i className="bi bi-arrow-clockwise"></i> Refresh
             </button>
             <button className="btn btn-primary text-white" onClick={() => navigate("/restock-cylinders")}>
@@ -93,6 +80,8 @@ function CylinderStock() {
             </button>
           </div>
         </div>
+
+        {error && <div className="alert alert-danger py-2">{error}</div>}
 
         {/* Summary metric cards */}
         <div className="row g-3 mb-4">
@@ -104,7 +93,7 @@ function CylinderStock() {
                   <i className="bi bi-stack"></i>
                 </span>
               </div>
-              <div className="metric-value">{totals.total}</div>
+              <div className="metric-value">{loading ? "—" : totals.total}</div>
               <div className="metric-meta">Across all categories</div>
             </div>
           </div>
@@ -117,7 +106,7 @@ function CylinderStock() {
                   <i className="bi bi-check-circle"></i>
                 </span>
               </div>
-              <div className="metric-value">{totals.available}</div>
+              <div className="metric-value">{loading ? "—" : totals.available}</div>
               <div className="metric-meta">Ready to dispatch</div>
             </div>
           </div>
@@ -130,7 +119,7 @@ function CylinderStock() {
                   <i className="bi bi-truck"></i>
                 </span>
               </div>
-              <div className="metric-value">{totals.reserved}</div>
+              <div className="metric-value">{loading ? "—" : totals.reserved}</div>
               <div className="metric-meta">Booked or in transit</div>
             </div>
           </div>
@@ -143,84 +132,91 @@ function CylinderStock() {
               <h2 className="section-title" style={{ fontSize: "1.1rem", margin: 0 }}>
                 <i className="bi bi-grid-1x2"></i> Stock by Category
               </h2>
-              <p className="text-muted mb-0">Mini, Domestic and Commercial cylinders</p>
+              <p className="text-muted mb-0">All cylinder types currently tracked</p>
             </div>
           </div>
 
-          <div className="row g-3">
-            {stock.map((item) => {
-              const level = getStockLevel(item);
-              const meta = levelMeta[level];
-              const percentFull = Math.round((item.available / item.total) * 100);
+          {loading ? (
+            <p className="text-muted mb-0 py-3">Loading stock…</p>
+          ) : stock.length === 0 ? (
+            <p className="text-muted mb-0 py-3">
+              No cylinder types found. Run the seed script to initialize inventory.
+            </p>
+          ) : (
+            <div className="row g-3">
+              {stock.map((item) => {
+                const level = getStockLevel(item);
+                const meta = levelMeta[level];
+                const percentFull = item.total > 0 ? Math.round((item.available / item.total) * 100) : 0;
 
-              return (
-                <div className="col-12 col-md-6 col-lg-4" key={item.id}>
-                  <div
-                    className="mini-card"
-                    style={{ display: "grid", gap: "0.75rem", minHeight: "auto", padding: "1.1rem" }}
-                  >
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="nav-icon" style={{ width: 34, height: 34, fontSize: "1rem" }}>
-                          <i className={`bi ${item.icon}`}></i>
-                        </span>
-                        <div>
-                          <strong style={{ display: "block", fontSize: "0.98rem" }}>
-                            {item.label}
-                          </strong>
-                          <span>{item.weight}</span>
+                return (
+                  <div className="col-12 col-md-6 col-lg-4" key={item.id}>
+                    <div
+                      className="mini-card"
+                      style={{ display: "grid", gap: "0.75rem", minHeight: "auto", padding: "1.1rem" }}
+                    >
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="nav-icon" style={{ width: 34, height: 34, fontSize: "1rem" }}>
+                            <i className={`bi ${item.icon}`}></i>
+                          </span>
+                          <div>
+                            <strong style={{ display: "block", fontSize: "0.98rem" }}>
+                              {item.label}
+                            </strong>
+                            <span>{item.weight}</span>
+                          </div>
                         </div>
+
+                        <span
+                          className="badge"
+                          style={{
+                            color: `var(${meta.var})`,
+                            background: `color-mix(in srgb, var(${meta.var}) 14%, transparent)`,
+                            fontWeight: 700,
+                            fontSize: "0.72rem",
+                          }}
+                        >
+                          {meta.label}
+                        </span>
                       </div>
 
-                      <span
-                        className="badge"
-                        style={{
-                          color: `var(${meta.var})`,
-                          background: `color-mix(in srgb, var(${meta.var}) 14%, transparent)`,
-                          fontWeight: 700,
-                          fontSize: "0.72rem",
-                        }}
-                      >
-                        {meta.label}
-                      </span>
-                    </div>
-
-                    <div className="d-flex justify-content-between" style={{ fontSize: "0.88rem" }}>
-                      <span className="text-muted">Available</span>
-                      <strong>{item.available} / {item.total}</strong>
-                    </div>
-
-                    {/* Reuses the dynamic chart-bar pattern already in your stylesheet */}
-                    <div className="chart-bar-wrap" style={{ height: 10 }}>
-                      <span
-                        className="chart-bar"
-                        style={{
-                          "--bar-size": `${percentFull}%`,
-                          background: `var(${meta.var})`,
-                          boxShadow: "none",
-                        }}
-                      ></span>
-                    </div>
-
-                    <div className="d-flex justify-content-between" style={{ fontSize: "0.82rem" }}>
-                      <span className="text-muted">Reserved: {item.reserved}</span>
-                      <strong>₹{item.price}</strong>
-                    </div>
-
-                    {level === "critical" && (
-                      <div
-                        className="alert alert-danger mb-0"
-                        style={{ padding: "0.5rem 0.7rem", fontSize: "0.78rem" }}
-                      >
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        Below threshold ({item.lowStockThreshold}) — restock needed
+                      <div className="d-flex justify-content-between" style={{ fontSize: "0.88rem" }}>
+                        <span className="text-muted">Available</span>
+                        <strong>{item.available} / {item.total}</strong>
                       </div>
-                    )}
+
+                      <div className="chart-bar-wrap" style={{ height: 10 }}>
+                        <span
+                          className="chart-bar"
+                          style={{
+                            "--bar-size": `${percentFull}%`,
+                            background: `var(${meta.var})`,
+                            boxShadow: "none",
+                          }}
+                        ></span>
+                      </div>
+
+                      <div className="d-flex justify-content-between" style={{ fontSize: "0.82rem" }}>
+                        <span className="text-muted">Reserved: {item.reserved}</span>
+                        <strong>₹{item.price}</strong>
+                      </div>
+
+                      {level === "critical" && (
+                        <div
+                          className="alert alert-danger mb-0"
+                          style={{ padding: "0.5rem 0.7rem", fontSize: "0.78rem" }}
+                        >
+                          <i className="bi bi-exclamation-triangle me-1"></i>
+                          Below threshold ({item.lowStockThreshold}) — restock needed
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
       </div>

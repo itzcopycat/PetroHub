@@ -10,6 +10,16 @@ const TABS = [
   { key: "revenue", label: "Revenue", icon: "bi-graph-up-arrow" },
 ];
 
+// TODO: replace with your actual registered business details before going live.
+// These are placeholders so the invoice layout can be reviewed now.
+const TAX_INVOICE_SELLER = {
+  name: "PetroHub Gas Distributors Pvt. Ltd.",
+  addressLine1: "123 Business Park Road, Industrial Area",
+  addressLine2: "[City], [State] - 000000",
+  gstin: "22AAAAA0000A1Z5",
+  pan: "AAAAA0000A",
+};
+
 function Reports() {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   const authHeader = { headers: { Authorization: `Bearer ${token}` } };
@@ -32,6 +42,7 @@ function Reports() {
     revenue: true,
   });
   const [error, setError] = useState("");
+  const [invoiceError, setInvoiceError] = useState("");
 
   const dateParams = () => {
     const params = {};
@@ -96,14 +107,21 @@ function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchAll]);
 
+  // On-screen only — browsers render ₹ fine.
   const currency = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+  // PDF only — jsPDF's default fonts (Helvetica) don't include the ₹ glyph,
+  // so it renders as a broken/garbled character. Column headers carry the
+  // "(₹)" label instead; cell values stay plain formatted numbers.
+  const pdfAmount = (n) => Number(n || 0).toLocaleString("en-IN");
+
   const rangeLabel = dateFrom || dateTo ? `${dateFrom || "start"} to ${dateTo || "today"}` : "all time";
 
   // ---- PDF section builders ----
   const sectionTableConfig = {
     bookings: {
       title: "Booking Report",
-      head: [["Booking ID", "Consumer", "Cylinder Type", "Qty", "Status", "Amount", "Date"]],
+      head: [["Booking ID", "Consumer", "Cylinder Type", "Qty", "Status", "Amount (Rs.)", "Date"]],
       rows: () =>
         bookings.map((b) => [
           b.id,
@@ -111,20 +129,20 @@ function Reports() {
           b.cylinderType,
           b.quantity,
           b.status,
-          currency(b.amount),
+          pdfAmount(b.amount),
           b.date ? new Date(b.date).toLocaleDateString("en-IN") : "-",
         ]),
     },
     consumers: {
       title: "Consumer Report",
-      head: [["Consumer ID", "Name", "Phone", "Total Orders", "Total Spent", "Joined"]],
+      head: [["Consumer ID", "Name", "Phone", "Total Orders", "Total Spent (Rs.)", "Joined"]],
       rows: () =>
         consumers.map((c) => [
           c.id,
           c.name,
           c.phone,
           c.totalOrders,
-          currency(c.totalSpent),
+          pdfAmount(c.totalSpent),
           c.joinedDate ? new Date(c.joinedDate).toLocaleDateString("en-IN") : "-",
         ]),
     },
@@ -136,8 +154,8 @@ function Reports() {
     },
     revenue: {
       title: "Revenue Report",
-      head: [["Month", "Bookings", "Revenue"]],
-      rows: () => revenue.map((r) => [r.label || r.month, r.bookingsCount ?? "-", currency(r.amount)]),
+      head: [["Month", "Bookings", "Revenue (Rs.)"]],
+      rows: () => revenue.map((r) => [r.label || r.month, r.bookingsCount ?? "-", pdfAmount(r.amount)]),
     },
   };
 
@@ -191,6 +209,104 @@ function Reports() {
     doc.save(`petrohub-full-report-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
+  // ---- Bulk tax invoice for the selected date range ----
+  const downloadTaxInvoice = () => {
+    setInvoiceError("");
+
+    // Only bookings that actually have a price breakdown can appear on a tax invoice.
+    const invoiceBookings = bookings.filter((b) => b.priceBreakup);
+    if (invoiceBookings.length === 0) {
+      setInvoiceError("No billable bookings with pricing data found for this date range.");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const invoiceNumber = `INV-${(dateFrom || "ALL").replace(/-/g, "")}-${(dateTo || "TODATE").replace(
+      /-/g,
+      ""
+    )}-${Date.now().toString().slice(-5)}`;
+
+    // Header — seller details
+    doc.setFontSize(15);
+    doc.setFont(undefined, "bold");
+    doc.text(TAX_INVOICE_SELLER.name, 14, 16);
+    doc.setFont(undefined, "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    doc.text(TAX_INVOICE_SELLER.addressLine1, 14, 22);
+    doc.text(TAX_INVOICE_SELLER.addressLine2, 14, 27);
+    doc.text(`GSTIN: ${TAX_INVOICE_SELLER.gstin}   PAN: ${TAX_INVOICE_SELLER.pan}`, 14, 32);
+    doc.setTextColor(0);
+
+    // Header — invoice metadata
+    doc.setFontSize(14);
+    doc.setFont(undefined, "bold");
+    doc.text("TAX INVOICE", 196, 16, { align: "right" });
+    doc.setFont(undefined, "normal");
+    doc.setFontSize(9);
+    doc.text(`Invoice No: ${invoiceNumber}`, 196, 22, { align: "right" });
+    doc.text(`Invoice Date: ${new Date().toLocaleDateString("en-IN")}`, 196, 27, { align: "right" });
+    doc.text(`Billing Period: ${rangeLabel}`, 196, 32, { align: "right" });
+
+    doc.setDrawColor(200);
+    doc.line(14, 37, 196, 37);
+
+    // Line items
+    let taxableSum = 0;
+    let taxSum = 0;
+    let grandSum = 0;
+
+    const rows = invoiceBookings.map((b, idx) => {
+      const pb = b.priceBreakup || {};
+      const taxable = (pb.cylinderPrice || 0) + (pb.deliveryFee || 0) + (pb.platformFee || 0);
+      const taxAmount = pb.taxAmount || 0;
+      const total = pb.total || b.amount || 0;
+
+      taxableSum += taxable;
+      taxSum += taxAmount;
+      grandSum += total;
+
+      return [
+        idx + 1,
+        b.id,
+        b.consumerName,
+        `${b.cylinderType} x ${b.quantity}`,
+        pdfAmount(taxable),
+        `${pb.taxRatePercent || 0}%`,
+        pdfAmount(taxAmount),
+        pdfAmount(total),
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 42,
+      head: [["#", "Booking ID", "Consumer", "Item", "Taxable Value (Rs.)", "Tax %", "Tax Amt (Rs.)", "Total (Rs.)"]],
+      body: rows,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [13, 110, 253] },
+      margin: { left: 14, right: 14 },
+    });
+
+    // Summary totals
+    let y = doc.lastAutoTable.finalY + 8;
+    doc.setFontSize(9);
+    doc.text(`Taxable Amount (Rs.): ${pdfAmount(taxableSum)}`, 196, y, { align: "right" });
+    y += 5;
+    doc.text(`Total Tax (Rs.): ${pdfAmount(taxSum)}`, 196, y, { align: "right" });
+    y += 6;
+    doc.setFont(undefined, "bold");
+    doc.setFontSize(11);
+    doc.text(`Grand Total (Rs.): ${pdfAmount(grandSum)}`, 196, y, { align: "right" });
+    doc.setFont(undefined, "normal");
+
+    y += 12;
+    doc.setFontSize(7);
+    doc.setTextColor(130);
+    doc.text("This is a system-generated tax invoice and does not require a signature.", 14, y);
+
+    doc.save(`tax-invoice-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   const isCurrentTabLoading = loading[activeTab];
 
   return (
@@ -208,7 +324,15 @@ function Reports() {
             </p>
           </div>
         </div>
-        <div className="heading-actions">
+        <div className="heading-actions d-flex gap-2">
+          <button
+            className="btn btn-outline-dark btn-sm"
+            type="button"
+            onClick={downloadTaxInvoice}
+            disabled={loading.bookings}
+          >
+            <i className="bi bi-receipt" aria-hidden="true" /> Download tax invoice
+          </button>
           <button className="btn btn-primary btn-sm" type="button" onClick={downloadFullReport}>
             <i className="bi bi-file-earmark-arrow-down" aria-hidden="true" /> Download full report
           </button>
@@ -216,6 +340,7 @@ function Reports() {
       </div>
 
       {error && <div className="alert alert-danger py-2 mt-3">{error}</div>}
+      {invoiceError && <div className="alert alert-warning py-2 mt-3">{invoiceError}</div>}
 
       {/* Overview stat cards */}
       <section className="row g-3 mt-1" aria-label="Report overview">
@@ -260,7 +385,7 @@ function Reports() {
               </span>
             </div>
             <div className="metric-value">
-              {loading.overview ? "—" : overview?.totalCylindersInStock?.toLocaleString("en-IN")}
+              {loading.overview ? "—" : overview?.totalCylindersInStock?.toLocaleString("en-IN") ?? "—"}
             </div>
             <div className="metric-meta">
               <span>current</span>
@@ -367,7 +492,7 @@ function Reports() {
                     <th>Cylinder Type</th>
                     <th>Qty</th>
                     <th>Status</th>
-                    <th>Amount</th>
+                    <th>Amount(₹)</th>
                     <th>Date</th>
                   </tr>
                 </thead>
@@ -381,7 +506,7 @@ function Reports() {
                       <td>
                         <span className="badge text-bg-light border">{b.status}</span>
                       </td>
-                      <td>{currency(b.amount)}</td>
+                      <td>{(b.amount)}</td>
                       <td>{b.date ? new Date(b.date).toLocaleDateString("en-IN") : "-"}</td>
                     </tr>
                   ))}

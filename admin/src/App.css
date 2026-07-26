@@ -26,14 +26,20 @@
 
 html {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
   background: linear-gradient(180deg, #f8fbff 0%, var(--admin-bg) 42%, #eef4fa 100%);
   color: var(--admin-text);
   font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body.sidebar-open {
+  overflow: hidden;
 }
 
 a {
@@ -42,6 +48,8 @@ a {
 
 .admin-shell {
   min-height: 100vh;
+  width: 100%;
+  overflow-x: clip;
 }
 
 .admin-sidebar {
@@ -229,6 +237,7 @@ logo-img:focus {
 
 .admin-main {
   width: auto;
+  max-width: 100%;
   min-width: 0;
   min-height: 100vh;
   margin-left: var(--sidebar-width);
@@ -390,10 +399,33 @@ logo-img:focus {
   border-radius: 50%;
 }
 
+.avatar-lg {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+}
+
 .avatar-xl {
   width: 78px;
   height: 78px;
   border-radius: 50%;
+}
+
+.avatar-initials {
+  align-items: center;
+  justify-content: center;
+  background: var(--admin-primary);
+  color: #ffffff;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.avatar-sm.avatar-initials {
+  font-size: 0.78rem;
+}
+
+.avatar-lg.avatar-initials {
+  font-size: 1.7rem;
 }
 
 .profile-button .avatar-sm {
@@ -730,6 +762,22 @@ html[data-theme="dark"] .profile-button .avatar-sm {
   overflow: hidden;
 }
 
+.change-password-card-wrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 280px);
+  padding: 2rem 0;
+}
+
+.change-password-card {
+  width: 100%;
+  max-width: 600px;
+  flex: 0 1 600px;
+  margin: 0;
+}
+
 .profile-cover {
   margin: -1.35rem -1.35rem 0.9rem;
   height: 96px;
@@ -745,7 +793,7 @@ html[data-theme="dark"] .profile-button .avatar-sm {
 }
 
 .profile-photo {
-  margin-top: -44px;
+  margin-top: 0;
   border: 4px solid var(--admin-surface);
   box-shadow: var(--admin-shadow-sm);
 }
@@ -1042,16 +1090,16 @@ html[data-theme="dark"] .profile-button .avatar-sm {
     margin-left: 0;
   }
 
-  body.sidebar-open {
-    overflow: hidden;
-  }
-
-  body.sidebar-open .admin-sidebar {
+  .admin-shell.sidebar-open .admin-sidebar {
     transform: translateX(0);
   }
 
-  body.sidebar-open .sidebar-backdrop {
+  .admin-shell.sidebar-open .sidebar-backdrop {
     display: block;
+  }
+
+  .admin-shell.sidebar-open {
+    overflow: hidden;
   }
 }
 
@@ -1542,7 +1590,7 @@ html[data-theme="dark"] .text-bg-danger {
   }
 
   .profile-photo {
-    margin-top: -8px;
+    margin-top: 0;
   }
 
   .auth-visual {
@@ -1623,14 +1671,23 @@ logo-img:focus {
   transition: transform 0.25s ease, width 0.25s ease;
 }
 
-.admin-sidebar.collapsed {
-  transform: translateX(-100%);
+@media (min-width: 992px) {
+  .admin-sidebar.collapsed {
+    transform: translateX(-100%);
+  }
 }
 
 /* if your layout uses a fixed sidebar + margin on admin-main, 
    reset the margin when collapsed so content fills the space */
 .admin-shell.sidebar-collapsed .admin-main {
   margin-left: 0;
+}
+
+@media (max-width: 991.98px) {
+  .admin-shell.sidebar-open .admin-sidebar,
+  .admin-shell.sidebar-open .admin-sidebar.collapsed {
+    transform: translateX(0);
+  }
 }
 .chart-bar-wrap {
   position: relative;

@@ -208,7 +208,7 @@ padding:30px 20px;
     top:50%;
     transform:translateY(-50%);
     cursor:pointer;
-    color:#777;
+    color:#000000;
 }
 
 .login-button{
@@ -417,7 +417,7 @@ font-size:30px;
     top:50%;
     transform:translateY(-50%);
     cursor:pointer;
-    color:#777;
+    color:#080808;
 }
 
 .checkbox-group{
@@ -2036,6 +2036,7 @@ width:360px;
   display: flex;
   flex-direction: column;
   line-height: 1;
+  position: relative;
 }
 
 .logo {
@@ -2049,7 +2050,7 @@ width:360px;
 /* ================= SLOGAN ================= */
 
 .slogan {
-  margin: 7px 0 0;
+  margin: 0;
 
   font-family: "Trebuchet MS", sans-serif;
   font-size: 14px;
@@ -2062,6 +2063,9 @@ width:360px;
   overflow: hidden;
   white-space: nowrap;
   display: inline-block;
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
 
   width: 0;
 
@@ -3683,29 +3687,26 @@ width:360px;
 
 /* ============================================================
    PetroHub — Contact Card, v2
-   Design direction: refinery control-room. Near-black backdrop,
-   blueprint grid texture, copper/amber glow, gauge-dial icons,
-   condensed industrial headline type, monospace data labels.
+   Light contact page theme to match the rest of the site.
    ============================================================ */
 
 :root {
-  --ph-black: #14120f;
-  --ph-panel: #1b1814;
+  --ph-black: #0f172a;
+  --ph-panel: #ffffff;
   --ph-copper: #e4672b;
-  --ph-amber: #ffb84d;
+  --ph-amber: #ff7a00;
   --ph-steel: #3a4750;
-  --ph-line: #2c2822;
-  --ph-off: #f5f1e8;
-  --ph-off-dim: #ab9f8c;
+  --ph-line: #e5e7eb;
+  --ph-off: #0f172a;
+  --ph-off-dim: #555;
 }
 
 .contact-page {
-  background:
-    radial-gradient(circle at 15% -10%, rgba(228, 103, 43, 0.14), transparent 45%),
-    var(--ph-black);
+  background: #ffffff;
   padding: 64px 24px;
   font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
   color: var(--ph-off);
+  min-height: 100vh;
 }
 
 .contact-header {
@@ -3734,7 +3735,7 @@ width:360px;
 }
 
 .contact-header p {
-  color: var(--ph-off-dim);
+  color: #666;
   font-size: 0.98rem;
   font-family: "JetBrains Mono", "Courier New", monospace;
   letter-spacing: 0.01em;
@@ -3750,8 +3751,8 @@ width:360px;
   border: 1px solid var(--ph-line);
   border-radius: 6px;
   box-shadow:
-    0 40px 80px -30px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(228, 103, 43, 0.05);
+    0 18px 45px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(228, 103, 43, 0.04);
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
   overflow: hidden;
@@ -3764,8 +3765,8 @@ width:360px;
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(245, 241, 232, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 241, 232, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
   background-size: 28px 28px;
   z-index: 0;
 }
@@ -3948,8 +3949,8 @@ width:360px;
   padding: 13px 16px;
   font-size: 0.95rem;
   font-family: "Inter", sans-serif;
-  color: var(--ph-off);
-  background: rgba(245, 241, 232, 0.03);
+  color: #000000;
+  background: #ffffff;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
@@ -3976,7 +3977,7 @@ width:360px;
   align-items: center;
   gap: 10px;
   background: var(--ph-copper);
-  color: var(--ph-black);
+  color: #ffffff;
   font-family: "Oswald", "Bebas Neue", "Arial Narrow", sans-serif;
   font-weight: 600;
   font-size: 0.95rem;
@@ -4101,4 +4102,106 @@ width:360px;
 .btn-cancel:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Rating Button in Order.jsx */
+
+.star-rating {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 22px 0 8px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  line-height: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.star-btn:hover,
+.star-btn.is-active {
+  transform: scale(1.15);
+}
+
+.star-rating-caption {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ff7a1a;
+  min-height: 1.2em;
+  margin-bottom: 20px;
+}
+
+.rate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid #ff7a1a;
+  background: #fff4ea;
+  color: #ff7a1a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rate-btn:hover:not(:disabled) {
+  background: #ff7a1a;
+  color: #fff;
+}
+
+.rate-btn.is-rated,
+.rate-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+  background: #f1f3f5;
+  color: #6c757d;
+  border-color: #dee2e6;
+}
+
+/* Copy Button of Orders.jsx */
+
+.booking-id-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.booking-id-row h4 {
+  margin: 0;
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #495057;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.copy-btn i {
+  font-size: 0.85rem;
+}
+
+.copy-btn:hover {
+  background: #f1f3f5;
+}
+
+.copy-btn.is-copied {
+  border-color: #2f9e44;
+  color: #2f9e44;
 }

@@ -14,7 +14,7 @@ const bookingSchema = new mongoose.Schema(
 
     cylinderType: {
       type: String,
-      enum: ["14.2kg", "19kg", "5kg"],
+      enum: ["14.2kg", "19kg", "5kg-ftl", "5kg-domestic"],
       required: true,
     },
     quantity: { type: Number, default: 1, min: 1 },

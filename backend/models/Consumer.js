@@ -95,7 +95,7 @@ const consumerSchema = new mongoose.Schema(
     },
     cylinderSize: {
       type: String,
-      enum: ["14.2kg", "19kg", "5kg"],
+      enum: ["14.2kg", "19kg"],
       required: false,
     },
     cylinderCount: {
