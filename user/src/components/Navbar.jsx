@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { FaBars, FaChevronDown } from "react-icons/fa";
 import Avatar from "./Avatar";
+import { toast } from "react-toastify";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -49,6 +50,7 @@ function Navbar() {
     setDropdownOpen(false);
     closeMenu();
     navigate("/login");
+    toast.success("You have been logged out.");
   };
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -39,7 +40,13 @@ function formatDate(value) {
 
 function formatAddress(addr) {
   if (!addr) return "—";
-  const parts = [addr.line1, addr.line2, addr.city, addr.state, addr.pincode].filter(Boolean);
+  const parts = [
+    addr.line1,
+    addr.line2,
+    addr.city,
+    addr.state,
+    addr.pincode,
+  ].filter(Boolean);
   return parts.length ? parts.join(", ") : "—";
 }
 
@@ -92,7 +99,7 @@ function TrackOrder() {
     try {
       const res = await axios.get(
         `${API_BASE}/api/bookings/track/${encodeURIComponent(id)}`,
-        { params: { phone } }
+        { params: { phone } },
       );
       setOrder(res.data.booking);
       setHasRated(Boolean(res.data.booking.rating));
@@ -100,7 +107,7 @@ function TrackOrder() {
       setOrder(null);
       setLookupError(
         err.response?.data?.message ||
-          "Could not find that booking. Please try again."
+          "Could not find that booking. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -119,14 +126,15 @@ function TrackOrder() {
   }
 
   function authHeaders() {
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    const token =
+      localStorage.getItem("token") || sessionStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : null;
   }
 
   async function handleCancelConfirm() {
     const headers = authHeaders();
     if (!headers) {
-      alert("Please log in to your account to cancel this booking.");
+      toast.error("Please log in to your account to cancel this booking.");
       setShowCancelModal(false);
       return;
     }
@@ -135,12 +143,15 @@ function TrackOrder() {
       await axios.patch(
         `${API_BASE}/api/bookings/${order._id}`,
         { status: "Cancelled" },
-        { headers }
+        { headers },
       );
       await fetchBooking(order.bookingId, phoneInput.trim());
       setShowCancelModal(false);
+      toast.success("Order cancelled successfully.");
     } catch (err) {
-      alert(err.response?.data?.message || "Could not cancel order. Try again.");
+      toast.error(
+        err.response?.data?.message || "Could not cancel order. Try again.",
+      );
     } finally {
       setCancelling(false);
     }
@@ -152,7 +163,7 @@ function TrackOrder() {
     e.preventDefault();
     const headers = authHeaders();
     if (!headers) {
-      alert("Please log in to your account to report a problem.");
+      toast.error("Please log in to your account to report a problem.");
       return;
     }
     setReporting(true);
@@ -160,11 +171,13 @@ function TrackOrder() {
       await axios.post(
         `${API_BASE}/api/bookings/${order._id}/report`,
         { reason: reportReason },
-        { headers }
+        { headers },
       );
       setReportSubmitted(true);
     } catch (err) {
-      alert(err.response?.data?.message || "Could not submit report. Try again.");
+      toast.error(
+        err.response?.data?.message || "Could not submit report. Try again.",
+      );
     } finally {
       setReporting(false);
     }
@@ -187,7 +200,7 @@ function TrackOrder() {
     if (!selectedRating || hasRated) return;
     const headers = authHeaders();
     if (!headers) {
-      alert("Please log in to your account to rate this delivery.");
+      toast.error("Please log in to your account to rate this delivery.");
       return;
     }
     setRatingSubmitting(true);
@@ -195,16 +208,16 @@ function TrackOrder() {
       await axios.post(
         `${API_BASE}/api/bookings/${order._id}/rate`,
         { rating: selectedRating },
-        { headers }
+        { headers },
       );
 
-      // Re-sync the tracked booking from the backend (source of truth)
-      // instead of just flipping local state — guarantees that re-tracking
-      // this same booking always shows it as already rated.
       await fetchBooking(order.bookingId, phoneInput.trim());
       setHasRated(true);
+      toast.success("Thanks for rating your delivery!");
     } catch (err) {
-      alert(err.response?.data?.message || "Could not submit rating. Try again.");
+      toast.error(
+        err.response?.data?.message || "Could not submit rating. Try again.",
+      );
     } finally {
       setRatingSubmitting(false);
     }
@@ -213,7 +226,9 @@ function TrackOrder() {
   const isCancelled = order?.status === "Cancelled";
   const isDelivered = order?.status === "Delivered";
   const currentStepIndex = order ? steps.indexOf(order.status) : -1;
-  const showDeliveryPartner = Boolean(order?.deliveryPartner || order?.assignedDeliveryAgent);
+  const showDeliveryPartner = Boolean(
+    order?.deliveryPartner || order?.assignedDeliveryAgent,
+  );
 
   const priceBreakup = order?.priceBreakup || null;
 
@@ -223,8 +238,8 @@ function TrackOrder() {
         <h1>Track Your LPG Order</h1>
 
         <p className="track-subtitle">
-          Enter your Booking ID and registered phone number to check the
-          current delivery status.
+          Enter your Booking ID and registered phone number to check the current
+          delivery status.
         </p>
 
         <form className="track-search" onSubmit={handleTrack}>
@@ -309,7 +324,8 @@ function TrackOrder() {
                 <>
                   <div className="price-row">
                     <span>
-                      Cylinder Price{order.quantity > 1 ? ` (× ${order.quantity})` : ""}
+                      Cylinder Price
+                      {order.quantity > 1 ? ` (× ${order.quantity})` : ""}
                     </span>
                     <span>₹{priceBreakup.cylinderPrice}</span>
                   </div>
@@ -338,7 +354,9 @@ function TrackOrder() {
                 // Legacy bookings created before priceBreakup existed
                 <div className="price-row total">
                   <span>Total Amount</span>
-                  <span>{order.price > 0 ? `₹${order.price}` : "To be confirmed"}</span>
+                  <span>
+                    {order.price > 0 ? `₹${order.price}` : "To be confirmed"}
+                  </span>
                 </div>
               )}
             </div>
@@ -360,7 +378,8 @@ function TrackOrder() {
                       <div
                         key={step}
                         className={
-                          "progress-step " + (index <= currentStepIndex ? "completed" : "")
+                          "progress-step " +
+                          (index <= currentStepIndex ? "completed" : "")
                         }
                       >
                         <div className="progress-dot">
@@ -370,7 +389,8 @@ function TrackOrder() {
                         {index < steps.length - 1 && (
                           <div
                             className={
-                              "progress-line " + (index < currentStepIndex ? "filled" : "")
+                              "progress-line " +
+                              (index < currentStepIndex ? "filled" : "")
                             }
                           ></div>
                         )}
@@ -386,7 +406,8 @@ function TrackOrder() {
                       <h3>Delivery Partner</h3>
                       <p>
                         <strong>Name:</strong>{" "}
-                        {order.deliveryPartner?.name || order.assignedDeliveryAgent}
+                        {order.deliveryPartner?.name ||
+                          order.assignedDeliveryAgent}
                       </p>
                       {order.deliveryPartner?.phone && (
                         <p>
@@ -409,7 +430,10 @@ function TrackOrder() {
 
                 {/* Actions */}
                 <div className="track-actions">
-                  <button className="report-btn" onClick={() => setShowReportModal(true)}>
+                  <button
+                    className="report-btn"
+                    onClick={() => setShowReportModal(true)}
+                  >
                     ⚠ Report a Problem
                   </button>
 
@@ -430,7 +454,8 @@ function TrackOrder() {
                       )}
                     </button>
                   ) : (
-                    (order.status === "Pending" || order.status === "Confirmed") && (
+                    (order.status === "Pending" ||
+                      order.status === "Confirmed") && (
                       <button
                         className="cancel-btn"
                         onClick={() => setShowCancelModal(true)}
@@ -457,7 +482,10 @@ function TrackOrder() {
 
       {/* Cancel confirmation modal */}
       {showCancelModal && (
-        <div className="modal-overlay" onClick={() => setShowCancelModal(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => setShowCancelModal(false)}
+        >
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <h3>Cancel this order?</h3>
             <p>
@@ -490,7 +518,9 @@ function TrackOrder() {
             {!reportSubmitted ? (
               <>
                 <h3>Report a Problem</h3>
-                <p>Let us know what went wrong with booking {order?.bookingId}.</p>
+                <p>
+                  Let us know what went wrong with booking {order?.bookingId}.
+                </p>
 
                 <form onSubmit={handleReportSubmit}>
                   <textarea
@@ -509,7 +539,11 @@ function TrackOrder() {
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="modal-btn-primary" disabled={reporting}>
+                    <button
+                      type="submit"
+                      className="modal-btn-primary"
+                      disabled={reporting}
+                    >
                       {reporting ? "Submitting…" : "Submit Report"}
                     </button>
                   </div>
@@ -519,11 +553,14 @@ function TrackOrder() {
               <>
                 <h3>✅ Report Submitted</h3>
                 <p>
-                  Thanks for letting us know. Our support team will reach
-                  out to you shortly regarding booking {order?.bookingId}.
+                  Thanks for letting us know. Our support team will reach out to
+                  you shortly regarding booking {order?.bookingId}.
                 </p>
                 <div className="modal-actions">
-                  <button className="modal-btn-primary" onClick={closeReportModal}>
+                  <button
+                    className="modal-btn-primary"
+                    onClick={closeReportModal}
+                  >
                     Close
                   </button>
                 </div>
@@ -543,7 +580,11 @@ function TrackOrder() {
                 <p>How was your delivery for booking {order?.bookingId}?</p>
 
                 <form onSubmit={handleRateSubmit}>
-                  <div className="star-rating" role="radiogroup" aria-label="Delivery rating">
+                  <div
+                    className="star-rating"
+                    role="radiogroup"
+                    aria-label="Delivery rating"
+                  >
                     {[1, 2, 3, 4, 5].map((star) => {
                       const active = (hoverRating || selectedRating) >= star;
                       return (
@@ -564,7 +605,8 @@ function TrackOrder() {
                   </div>
 
                   <p className="star-rating-caption">
-                    {RATING_LABELS[hoverRating || selectedRating] || "Tap a star to rate"}
+                    {RATING_LABELS[hoverRating || selectedRating] ||
+                      "Tap a star to rate"}
                   </p>
 
                   <div className="modal-actions">
@@ -589,11 +631,14 @@ function TrackOrder() {
               <>
                 <h3>✅ Thanks for rating!</h3>
                 <p>
-                  Your feedback for booking {order?.bookingId} has been
-                  recorded and helps us keep delivery quality high.
+                  Your feedback for booking {order?.bookingId} has been recorded
+                  and helps us keep delivery quality high.
                 </p>
                 <div className="modal-actions">
-                  <button className="modal-btn-primary" onClick={closeRateModal}>
+                  <button
+                    className="modal-btn-primary"
+                    onClick={closeRateModal}
+                  >
                     Close
                   </button>
                 </div>

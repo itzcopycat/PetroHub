@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaPaperPlane } from "react-icons/fa";
+import { toast } from "react-toastify";
 
 function Contact() {
   const [formData, setFormData] = useState({
@@ -16,7 +17,7 @@ function Contact() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
   e.preventDefault();
 
   try {
@@ -29,15 +30,15 @@ function Contact() {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.message || "Something went wrong. Please try again.");
+      toast.error(data.message || "Something went wrong. Please try again.");
       return;
     }
 
-    alert("Thanks for reaching out! We'll get back to you soon.");
+    toast.success("Thanks for reaching out! We'll get back to you soon.");
     setFormData({ name: "", email: "", subject: "", message: "" });
   } catch (err) {
     console.error("Contact form submit error:", err);
-    alert("Network error. Please try again.");
+    toast.error("Network error. Please try again.");
   }
 };
 

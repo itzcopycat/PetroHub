@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
@@ -112,8 +113,9 @@ function Orders() {
       );
       await fetchOrders();
       setSelectedOrder(null);
+      toast.success("Order cancelled successfully.");
     } catch (err) {
-      alert(err.response?.data?.message || "Could not cancel order. Try again.");
+      toast.error(err.response?.data?.message || "Could not cancel order. Try again.");
     } finally {
       setCancelling(false);
     }
